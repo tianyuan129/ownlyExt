@@ -90,6 +90,22 @@
           </li>
         </ul>
 
+        <p class="menu-label">Patch-Only JSON Doc</p>
+        <ul class="menu-list">
+          <li v-for="ydoc in yjsdocs" :key="ydoc.uuid">
+            <router-link :to="linkExtYdocs(ydoc)">
+              <FontAwesomeIcon class="mr-1" :icon="faLink" size="sm" />
+              {{ ydoc.name }}
+            </router-link>
+          </li>
+          <li>
+            <a @click="showExtYdocModal = true">
+              <FontAwesomeIcon class="mr-1" :icon="faPlus" size="sm" />
+              Add JSON Doc
+            </a>
+          </li>
+        </ul>
+
         <p class="menu-label">Workspace</p>
         <ul class="menu-list">
           <li>
@@ -125,6 +141,7 @@
     </div>
 
     <AddChannelModal :show="showChannelModal" @close="showChannelModal = false" />
+    <AddExtYdocModal :show="showExtYdocModal" @close="showExtYdocModal = false" />
     <AddProjectModal :show="showProjectModal" @close="showProjectModal = false" />
     <InvitePeopleModal :show="showInviteModal" @close="showInviteModal = false" />
     <QRIdentityModal :show="showIdentity" @close="showIdentity = false" />
@@ -140,6 +157,7 @@ import {
   faLayerGroup,
   faPlus,
   faHashtag,
+  faLink,
   faWifi,
   faGhost,
   faTableCells,
@@ -151,12 +169,13 @@ import { faGithub } from '@fortawesome/free-brands-svg-icons';
 import ProjectTree from './ProjectTree.vue';
 import ProjectTreeMenu from './ProjectTreeMenu.vue';
 import AddChannelModal from './AddChannelModal.vue';
+import AddExtYdocModal from './AddExtYdocModal.vue';
 import AddProjectModal from './AddProjectModal.vue';
 
 import { GlobalBus } from '@/services/event-bus';
 import { Toast } from '@/utils/toast';
 
-import type { IChatChannel, IProject, IProjectFile } from '@/services/types';
+import type { IChatChannel, IExtYdoc, IProject, IProjectFile } from '@/services/types';
 import InvitePeopleModal from './InvitePeopleModal.vue';
 import QRIdentityModal from './QRIdentityModal.vue';
 
@@ -165,10 +184,11 @@ const routeIsDashboard = computed(() =>
   ['dashboard', 'join', 'about'].includes(String(route.name)),
 );
 const routeIsWorkspace = computed(() =>
-  ['space-home', 'project', 'discuss', 'project-file'].includes(String(route.name)),
+  ['space-home', 'project', 'discuss', 'external', 'project-file'].includes(String(route.name)),
 );
 
 const showChannelModal = ref(false);
+const showExtYdocModal = ref(false);
 const showProjectModal = ref(false);
 const showInviteModal = ref(false);
 const showIdentity = ref(false);
@@ -177,6 +197,7 @@ const showIdentity = ref(false);
 const projectTree = useTemplateRef<Array<InstanceType<typeof ProjectTree>>>('projectTree');
 
 const channels = ref([] as IChatChannel[]);
+const yjsdocs = ref([] as IExtYdoc[]);
 
 const projects = ref([] as IProject[]);
 const activeProjectName = ref(null as string | null);
@@ -191,6 +212,7 @@ const busListeners = {
     projectFiles.value = files;
   },
   'chat-channels': (chans: IChatChannel[]) => (channels.value = chans),
+  'ext-yjsdocs': (ydocs: IExtYdoc[]) => (yjsdocs.value = ydocs),
   'conn-change': () => {
     connState.value = globalThis._ndnd_conn_state;
     if (!connState.value.connected) {
@@ -203,6 +225,7 @@ onMounted(async () => {
   GlobalBus.addListener('project-list', busListeners['project-list']);
   GlobalBus.addListener('project-files', busListeners['project-files']);
   GlobalBus.addListener('chat-channels', busListeners['chat-channels']);
+  GlobalBus.addListener('ext-yjsdocs', busListeners['ext-yjsdocs']);
   GlobalBus.addListener('conn-change', busListeners['conn-change']);
 });
 
@@ -210,6 +233,7 @@ onUnmounted(() => {
   GlobalBus.removeListener('project-list', busListeners['project-list']);
   GlobalBus.removeListener('project-files', busListeners['project-files']);
   GlobalBus.removeListener('chat-channels', busListeners['chat-channels']);
+  GlobalBus.removeListener('ext-yjsdocs', busListeners['ext-yjsdocs']);
   GlobalBus.removeListener('conn-change', busListeners['conn-change']);
 });
 
@@ -235,6 +259,17 @@ function linkDiscuss(channel: IChatChannel) {
     params: {
       space: route.params.space,
       channel: channel.name,
+    },
+  };
+}
+
+/** Link to external Yjs documents */
+function linkExtYdocs(yjsdoc: IExtYdoc) {
+  return {
+    name: 'external',
+    params: {
+      space: route.params.space,
+      yjsdoc: yjsdoc.name,
     },
   };
 }

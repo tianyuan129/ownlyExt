@@ -29,7 +29,7 @@ import (
 const SnapshotThreshold = 100
 
 // TODO: change this
-var repoName, _ = enc.NameFromStr("/ndnd/ucla/repo")
+var repoName, _ = enc.NameFromStr("/ndnd/ucla/repo2")
 
 // TODO: this is testbed configuration
 var multicastPrefix, _ = enc.NameFromStr("/ndn/multicast")

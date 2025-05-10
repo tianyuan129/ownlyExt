@@ -1,4 +1,5 @@
 import { WorkspaceChat } from './workspace-chat';
+import { WorkspaceExt } from './workspace-ext';
 import { WorkspaceProj, WorkspaceProjManager } from './workspace-proj';
 import { WorkspaceInviteManager } from './workspace-invite';
 
@@ -30,6 +31,7 @@ export class Workspace {
     private readonly api: WorkspaceAPI,
     private readonly provider: SvsProvider,
     public readonly chat: WorkspaceChat,
+    public readonly ext: WorkspaceExt,
     public readonly proj: WorkspaceProjManager,
     public readonly invite: WorkspaceInviteManager,
   ) {}
@@ -51,11 +53,12 @@ export class Workspace {
 
     // Create general modules
     const chat = await WorkspaceChat.create(api, provider);
+    const ext = await WorkspaceExt.create(api, provider);
     const proj = await WorkspaceProjManager.create(api, provider);
     const invite = await WorkspaceInviteManager.create(api, metadata, provider);
 
     // Create workspace object
-    return new Workspace(metadata, api, provider, chat, proj, invite);
+    return new Workspace(metadata, api, provider, chat, ext, proj, invite);
   }
 
   /**
@@ -65,6 +68,7 @@ export class Workspace {
   public async destroy() {
     await this.proj.destroy();
     await this.chat.destroy();
+    await this.ext.destroy();
     await this.provider?.destroy();
     await this.api?.stop();
   }

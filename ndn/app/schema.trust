@@ -40,7 +40,7 @@
 #invite: #owner/wksp/"root"/"32=INVITE"/#user <= #owner_cert
 
 // TODO: Repo commands
-#repo_cmd: /"ndnd"/"ucla"/"repo"/_ <= #user_cert
+#repo_cmd: /"ndnd"/"ucla"/"repo2"/_ <= #user_cert
 
 // Standard NDN conventions
 #KEY: "KEY"/_/_/_

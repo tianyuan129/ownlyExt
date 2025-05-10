@@ -32,6 +32,15 @@ export type IChatChannel = {
   name: string;
 };
 
+export type IExtYdoc = {
+  /** External YDoc ID */
+  uuid: string;
+  /** External YDoc name */
+  name: string;
+  /** External YDoc name */
+  url: string;
+};
+
 export type IProject = {
   /** Project ID */
   uuid: string;

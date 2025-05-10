@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router';
 import DashboardView from '@/views/DashboardView.vue';
 import SpaceHomeView from '@/views/SpaceHomeView.vue';
 import SpaceDiscussView from '@/views/SpaceDiscussView.vue';
+import SpaceExternalView from '@/views/SpaceExternalView.vue';
 import SpaceProjectView from '@/views/SpaceProjectView.vue';
 import ProjectFileView from '@/views/ProjectFileView.vue';
 import AboutView from '@/views/AboutView.vue';
@@ -38,6 +39,11 @@ const router = createRouter({
       path: '/:space/discuss/:channel',
       name: 'discuss',
       component: SpaceDiscussView,
+    },
+    {
+      path: '/:space/external/:yjsdoc',
+      name: 'external',
+      component: SpaceExternalView,
     },
     {
       path: '/about',

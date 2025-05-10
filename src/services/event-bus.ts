@@ -1,7 +1,7 @@
 import { EventEmitter } from 'events';
 
 import type TypedEmitter from 'typed-emitter';
-import type { IChatChannel, IProject, IProjectFile } from './types';
+import type { IChatChannel, IExtYdoc, IProject, IProjectFile } from './types';
 
 /**
  * Global event bus for the application.
@@ -40,4 +40,6 @@ export const GlobalBus = new EventEmitter() as TypedEmitter<{
    * The state is stored in _ndnd_conn_state
    */
   'conn-change': () => void;
+
+  'ext-yjsdocs': (ydoc: IExtYdoc[]) => void;
 }>;
