@@ -66,6 +66,7 @@ export class WorkspaceExt {
 
     // send
     observeYDocForPatches(doc, (patches: Operation[]) => {
+      this.events.emit('ext', yjsdoc.uuid, Date().toString());
       if (socket.readyState === WebSocket.OPEN) {
         const message = JSON.stringify({
           type: 'patch',
