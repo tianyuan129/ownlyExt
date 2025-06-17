@@ -53,43 +53,46 @@ export function applyJsonPatchToYDoc(doc: Y.Doc, patch: Operation[]): void {
       const pathParts = op.path.slice(1).split('/').map(decodeURIComponent);
       if (pathParts.length === 0 || (pathParts.length === 1 && pathParts[0] === '')) continue;
 
-      // --- Start of Corrected Section ---
+      let current: any = root;
+      let parent: any = null;
+      let lastKeyOrIndex: string | number | null = null;
 
-      let parent: any = root;
-
-      // Traverse the path to find the parent container
-      for (let i = 0; i < pathParts.length - 1; i++) {
-        if (!parent) break;
-
+      // Traverse the path to find the parent container and the final key/index
+      for (let i = 0; i < pathParts.length; i++) {
+        parent = current;
         const part = pathParts[i];
-        let next;
 
         if (parent instanceof Y.Map) {
-          next = parent.get(part);
+          lastKeyOrIndex = part;
+          if (i < pathParts.length - 1) { // Only move 'current' if there are more parts to traverse
+            current = parent.get(part);
+          }
         } else if (parent instanceof Y.Array) {
           const index = parseInt(part, 10);
-          next = parent.get(index);
+          if (isNaN(index)) {
+            parent = undefined; // Invalid path for array
+            break;
+          }
+          lastKeyOrIndex = index;
+          if (i < pathParts.length - 1) { // Only move 'current' if there are more parts to traverse
+            current = parent.get(index);
+          }
         } else {
-          parent = undefined; // Invalid path, parent is a primitive
+          parent = undefined; // Invalid path, parent is a primitive or doesn't exist
           break;
         }
-        parent = next;
       }
 
-      if (!(parent instanceof Y.Map || parent instanceof Y.Array)) {
-          console.warn('Could not find parent for op:', op);
+      if (!(parent instanceof Y.Map || parent instanceof Y.Array) || lastKeyOrIndex === null) {
+          console.warn('Could not find valid parent for op:', op);
           continue; // Skip to the next operation
       }
-      // --- End of Corrected Section ---
-
-
-      const keyOrIndex = pathParts[pathParts.length - 1];
 
       try {
         if (parent instanceof Y.Map) {
-          handleMapOperation(parent, op, keyOrIndex);
+          handleMapOperation(parent, op, lastKeyOrIndex as string);
         } else if (parent instanceof Y.Array) {
-          handleArrayOperation(parent, op, keyOrIndex);
+          handleArrayOperation(parent, op, lastKeyOrIndex as number);
         }
       } catch (err) {
         console.warn('Failed to apply patch op:', op, err);
@@ -108,8 +111,7 @@ function handleMapOperation(map: Y.Map<any>, op: Operation, key: string) {
   }
 }
 
-function handleArrayOperation(array: Y.Array<any>, op: Operation, key: string) {
-  const index = parseInt(key, 10);
+function handleArrayOperation(array: Y.Array<any>, op: Operation, index: number) {
   if (isNaN(index)) return;
 
   if (op.op === 'add') {
@@ -117,6 +119,12 @@ function handleArrayOperation(array: Y.Array<any>, op: Operation, key: string) {
     array.insert(index, [convertValue(value)]);
   } else if (op.op === 'replace') {
     const value = (op as ReplaceOperation<any>).value;
+    // For 'replace', Y.js is more efficient if you just overwrite the value
+    // without deleting and re-inserting, if the item at index is a Y.Map/Y.Array
+    // or if it's a primitive.
+    // If you need to replace a primitive with a Y.Map/Y.Array or vice-versa,
+    // the delete/insert approach is safer to ensure type consistency.
+    // Given convertValue, this should be fine.
     array.delete(index, 1);
     array.insert(index, [convertValue(value)]);
   } else if (op.op === 'remove') {
@@ -129,7 +137,15 @@ function generatePatch(
   op: 'add' | 'replace' | 'remove',
   value?: any
 ): Operation {
-  const fullPath = '/' + path.map(p => encodeURIComponent(p.toString())).join('/');
+  // JSON Patch paths for array indices should be numbers, not encoded.
+  // For property names, they should be encoded.
+  const fullPath = '/' + path.map(p => {
+    if (typeof p === 'number') {
+      return p.toString(); // Numbers for array indices
+    }
+    return encodeURIComponent(p.toString()); // Encode string keys
+  }).join('/');
+
   if (op === 'remove') {
     return { op, path: fullPath };
   }
@@ -152,7 +168,13 @@ export function observeYDocForPatches(doc: Y.Doc, callback: PatchCallback): void
     const patches: Operation[] = [];
 
     for (const event of events) {
-      const path = getPathFromTarget(event.target);
+      // getPathFromTarget now recursively finds the correct path from the root
+      const path = getPathFromTarget(event.target, rootMap);
+      if (path.length === 0 && event.target !== rootMap) { // If target is not rootMap and path is empty, it means we couldn't resolve
+          console.warn('Could not determine path for event target:', event.target);
+          continue;
+      }
+
       if (event instanceof Y.YMapEvent) {
         patches.push(...handleMapEvent(event, path));
       } else if (event instanceof Y.YArrayEvent) {
@@ -165,33 +187,36 @@ export function observeYDocForPatches(doc: Y.Doc, callback: PatchCallback): void
     }
   };
 
-  // Create a map to reconstruct path from a Yjs type
-  const yTypeToPath = new WeakMap<Y.AbstractType<any>, (string | number)[]>();
-  function buildPathMap(type: Y.AbstractType<any>, path: (string | number)[]) {
-    if (yTypeToPath.has(type)) return;
-    yTypeToPath.set(type, path);
-
-    if (type instanceof Y.Map) {
-      type.forEach((value, key) => {
-        if (value instanceof Y.AbstractType) {
-          buildPathMap(value, [...path, key]);
-        }
-      });
-    } else if (type instanceof Y.Array) {
-      type.forEach((value, i) => {
-        if (value instanceof Y.AbstractType) {
-          buildPathMap(value, [...path, i]);
-        }
-      });
+  /**
+   * Recursively finds the full path of a Y.AbstractType from a starting YType.
+   * This ensures the complete JSON Patch path is constructed.
+   */
+  function getPathFromTarget(target: Y.AbstractType<any>, currentYType: Y.AbstractType<any>, currentPath: (string | number)[] = []): (string | number)[] {
+    if (target === currentYType) {
+      return currentPath;
     }
-  }
 
-  buildPathMap(rootMap, []);
-
-  function getPathFromTarget(target: Y.AbstractType<any>): (string|number)[] {
-    // Rebuild the map on every transaction in case hierarchy changes
-    buildPathMap(rootMap, []);
-    return yTypeToPath.get(target) || [];
+    if (currentYType instanceof Y.Map) {
+      for (const [key, value] of currentYType.entries()) {
+        if (value instanceof Y.AbstractType) {
+          const foundPath = getPathFromTarget(target, value, [...currentPath, key]);
+          if (foundPath.length > 0) {
+            return foundPath;
+          }
+        }
+      }
+    } else if (currentYType instanceof Y.Array) {
+      for (let i = 0; i < currentYType.length; i++) {
+        const value = currentYType.get(i);
+        if (value instanceof Y.AbstractType) {
+          const foundPath = getPathFromTarget(target, value, [...currentPath, i]);
+          if (foundPath.length > 0) {
+            return foundPath;
+          }
+        }
+      }
+    }
+    return [];
   }
 
   rootMap.observeDeep(observer);
@@ -200,12 +225,13 @@ export function observeYDocForPatches(doc: Y.Doc, callback: PatchCallback): void
 function handleMapEvent(event: Y.YMapEvent<any>, basePath: (string | number)[]): Operation[] {
   const patches: Operation[] = [];
   for (const [key, change] of event.changes.keys.entries()) {
+    const fullPath = [...basePath, key];
     if (change.action === 'add') {
-      patches.push(generatePatch([...basePath, key], 'add', event.target.get(key)));
+      patches.push(generatePatch(fullPath, 'add', convertYTypeToJson(event.target.get(key))));
     } else if (change.action === 'update') {
-      patches.push(generatePatch([...basePath, key], 'replace', event.target.get(key)));
+      patches.push(generatePatch(fullPath, 'replace', convertYTypeToJson(event.target.get(key))));
     } else if (change.action === 'delete') {
-      patches.push(generatePatch([...basePath, key], 'remove'));
+      patches.push(generatePatch(fullPath, 'remove'));
     }
   }
   return patches;
@@ -213,21 +239,45 @@ function handleMapEvent(event: Y.YMapEvent<any>, basePath: (string | number)[]):
 
 function handleArrayEvent(event: Y.YArrayEvent<any>, basePath: (string | number)[]): Operation[] {
   const patches: Operation[] = [];
-  let index = 0;
+  let currentIndex = 0; // Tracks the current index in the array for patch generation
+
   for (const delta of event.changes.delta) {
     if (delta.retain) {
-      index += delta.retain;
+      currentIndex += delta.retain;
     } else if (delta.insert) {
+      // delta.insert can be a single item or an array of items
       const items = Array.isArray(delta.insert) ? delta.insert : [delta.insert];
-      items.forEach((item, i) => {
-        patches.push(generatePatch([...basePath, index + i], 'add', item));
+      items.forEach((item) => {
+        // For 'add' operations, the path includes the index where it's inserted.
+        patches.push(generatePatch([...basePath, currentIndex], 'add', convertYTypeToJson(item)));
+        currentIndex++; // Increment index for subsequent inserts
       });
-      index += items.length;
     } else if (delta.delete) {
+      // For 'remove' operations, the path should point to the element being removed.
+      // Y.js deltas describe changes based on the state *before* the current operation,
+      // so `currentIndex` correctly points to the element to be deleted.
       for (let i = 0; i < delta.delete; i++) {
-        patches.push(generatePatch([...basePath, index], 'remove'));
+        patches.push(generatePatch([...basePath, currentIndex], 'remove'));
       }
+      // Note: currentIndex is NOT incremented for deletes because the elements are removed,
+      // and subsequent elements shift to the left. The next operation will work from this `currentIndex`.
     }
   }
   return patches;
+}
+
+// Helper function to convert Y.Map/Y.Array instances back to plain JSON for patches
+function convertYTypeToJson(yValue: any): any {
+  if (yValue instanceof Y.Map) {
+    const obj: { [key: string]: any } = {};
+    yValue.forEach((value, key) => {
+      obj[key] = convertYTypeToJson(value);
+    });
+    return obj;
+  }
+  if (yValue instanceof Y.Array) {
+    // Corrected line: Y.Array.map already returns a plain JS array
+    return yValue.map((item) => convertYTypeToJson(item));
+  }
+  return yValue;
 }
