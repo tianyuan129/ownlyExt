@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket External JSON Sync - Test UI</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        .status.connected { background: #d4edda; color: #155724; }
+        .status.disconnected { background: #f8d7da; color: #721c24; }
+        .controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .control-group {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+        }
+        .control-group h3 {
+            margin-top: 0;
+            color: #495057;
+        }
+        input, textarea, button {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            padding: 10px;
+        }
+        button:hover { background: #0056b3; }
+        button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        textarea {
+            min-height: 100px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 12px;
+        }
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            padding: 15px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+        }
+        .error { color: #dc3545; }
+        .success { color: #28a745; }
+        .info { color: #007bff; }
+    </style>
+</head>
+<body>
+    <h1>🔗 WebSocket External JSON Sync - Test Interface</h1>
+    
+    <div class="container">
+        <div id="status" class="status disconnected">
+            ❌ Disconnected
+        </div>
+        
+        <div>
+            <label>WebSocket URL:</label>
+            <input type="text" id="wsUrl" value="wss://ownly-websocket.tianyuan-3da.workers.dev" style="width: 70%; display: inline-block;">
+            <button id="connectBtn" style="width: 25%; display: inline-block;">Connect</button>
+        </div>
+        
+        <div style="margin-top: 15px;">
+            <label>Client Token:</label>
+            <input type="text" id="clientToken" placeholder="tok_xxxxxxxxxxxxx" style="width: 100%;">
+            <p style="font-size: 12px; color: #666; margin: 5px 0;">Enter the token from Ownly to identify this client</p>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="controls">
+            <!-- Pull Operation -->
+            <div class="control-group">
+                <h3>📥 Pull Document</h3>
+                <p>Get entire document from server</p>
+                <input type="text" id="pullDocName" placeholder="Document name" value="test-doc">
+                <button id="pullBtn" disabled>Pull Document</button>
+            </div>
+
+            <!-- Push Operation -->
+            <div class="control-group">
+                <h3>📤 Push Document</h3>
+                <p>Replace entire document on server</p>
+                <input type="text" id="pushDocName" placeholder="Document name" value="test-doc">
+                <textarea id="pushData" placeholder='{"key": "value", "example": true}'>{
+  "title": "Test Document",
+  "content": "Hello from WebSocket UI",
+  "timestamp": "2025-07-12T21:00:00Z"
+}</textarea>
+                <button id="pushBtn" disabled>Push Document</button>
+            </div>
+
+            <!-- Patch Operation -->
+            <div class="control-group">
+                <h3>🔧 Patch Document</h3>
+                <p>Apply JSON Patch operations</p>
+                <input type="text" id="patchDocName" placeholder="Document name" value="test-doc">
+                <textarea id="patchData" placeholder='[{"op": "replace", "path": "/title", "value": "Updated"}]'>[
+  {"op": "replace", "path": "/title", "value": "Updated Title"},
+  {"op": "add", "path": "/modified", "value": true}
+]</textarea>
+                <button id="patchBtn" disabled>Apply Patch</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h3>📋 WebSocket Log</h3>
+        <div id="log" class="log">Ready to connect...\n</div>
+        <button onclick="clearLog()">Clear Log</button>
+    </div>
+
+    <script>
+        let ws = null;
+        const log = document.getElementById('log');
+        const status = document.getElementById('status');
+        const connectBtn = document.getElementById('connectBtn');
+
+        function logMessage(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : 'info';
+            log.innerHTML += `<span class="${className}">[${timestamp}] ${message}</span>\n`;
+            log.scrollTop = log.scrollBottom;
+        }
+
+        function updateConnectionStatus(connected) {
+            const buttons = ['pullBtn', 'pushBtn', 'patchBtn'];
+            buttons.forEach(id => {
+                document.getElementById(id).disabled = !connected;
+            });
+
+            if (connected) {
+                status.className = 'status connected';
+                status.textContent = '✅ Connected';
+                connectBtn.textContent = 'Disconnect';
+            } else {
+                status.className = 'status disconnected';
+                status.textContent = '❌ Disconnected';
+                connectBtn.textContent = 'Connect';
+            }
+        }
+
+        function connect() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.close();
+                return;
+            }
+
+            const url = document.getElementById('wsUrl').value;
+            logMessage(`Connecting to ${url}...`);
+
+            ws = new WebSocket(url);
+
+            ws.onopen = () => {
+                logMessage('Connected successfully!', 'success');
+                updateConnectionStatus(true);
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    logMessage(`📨 Received: ${JSON.stringify(data, null, 2)}`, 'success');
+                } catch (e) {
+                    logMessage(`📨 Received: ${event.data}`, 'success');
+                }
+            };
+
+            ws.onclose = () => {
+                logMessage('Connection closed', 'error');
+                updateConnectionStatus(false);
+            };
+
+            ws.onerror = (error) => {
+                logMessage(`Connection error: ${error}`, 'error');
+                updateConnectionStatus(false);
+            };
+        }
+
+        function sendMessage(message) {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                logMessage('Not connected to WebSocket', 'error');
+                return;
+            }
+
+            const jsonStr = JSON.stringify(message);
+            logMessage(`📤 Sending: ${jsonStr}`);
+            ws.send(jsonStr);
+        }
+
+        function pullDocument() {
+            const name = document.getElementById('pullDocName').value;
+            const token = document.getElementById('clientToken').value;
+            if (!name) {
+                logMessage('Document name is required for pull', 'error');
+                return;
+            }
+            sendMessage({ type: 'pull', name: name, token: token });
+        }
+
+        function pushDocument() {
+            const name = document.getElementById('pushDocName').value;
+            const dataStr = document.getElementById('pushData').value;
+            const token = document.getElementById('clientToken').value;
+
+            if (!name) {
+                logMessage('Document name is required for push', 'error');
+                return;
+            }
+
+            try {
+                const data = JSON.parse(dataStr);
+                sendMessage({ type: 'push', name: name, token: token, data: data });
+            } catch (e) {
+                logMessage(`Invalid JSON in push data: ${e.message}`, 'error');
+            }
+        }
+
+        function patchDocument() {
+            const name = document.getElementById('patchDocName').value;
+            const patchStr = document.getElementById('patchData').value;
+            const token = document.getElementById('clientToken').value;
+
+            if (!name) {
+                logMessage('Document name is required for patch', 'error');
+                return;
+            }
+
+            try {
+                const patches = JSON.parse(patchStr);
+                if (!Array.isArray(patches)) {
+                    throw new Error('Patch data must be an array');
+                }
+                sendMessage({ type: 'patch', name: name, token: token, data: patches });
+            } catch (e) {
+                logMessage(`Invalid JSON in patch data: ${e.message}`, 'error');
+            }
+        }
+
+        function clearLog() {
+            log.innerHTML = '';
+        }
+
+        // Event listeners
+        connectBtn.addEventListener('click', connect);
+        document.getElementById('pullBtn').addEventListener('click', pullDocument);
+        document.getElementById('pushBtn').addEventListener('click', pushDocument);
+        document.getElementById('patchBtn').addEventListener('click', patchDocument);
+
+        // Enter key shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && e.ctrlKey) {
+                if (e.target.id === 'pullDocName') pullDocument();
+                else if (e.target.id === 'pushDocName' || e.target.id === 'pushData') pushDocument();
+                else if (e.target.id === 'patchDocName' || e.target.id === 'patchData') patchDocument();
+            }
+        });
+
+        logMessage('WebSocket test UI loaded. Click Connect to start.', 'success');
+    </script>
+</body>
+</html>

@@ -161,8 +161,8 @@ export function observeYDocForPatches(doc: Y.Doc, callback: PatchCallback): void
   const rootMap = doc.getMap('root');
 
   const observer = (events: (Y.YMapEvent<any> | Y.YArrayEvent<any>)[], transaction: Y.Transaction) => {
-    if (transaction.origin === 'local') {
-      return; // Ignore changes made by applyJsonPatchToYDoc
+    if (transaction.origin === 'local' || transaction.origin === 'external_push') {
+      return; // Ignore changes made by applyJsonPatchToYDoc and external push operations
     }
 
     const patches: Operation[] = [];

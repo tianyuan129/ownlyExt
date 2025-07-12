@@ -1,0 +1,10 @@
+name = "ownly-websocket-ui"
+compatibility_date = "2024-07-01"
+pages_build_output_dir = "."
+
+# Cloudflare Pages configuration for WebSocket Test UI
+[env.production]
+name = "ownly-websocket-ui-prod"
+
+[env.preview]
+name = "ownly-websocket-ui-preview"

@@ -41,6 +41,21 @@
           The distribution point of JSON patches.
         </p>
       </div>
+      <label class="label">Client Token</label>
+      <div class="control has-icons-left">
+        <input
+          class="input"
+          type="text"
+          readonly
+          :value="clientToken"
+        />
+        <span class="icon is-small is-left">
+          <FontAwesomeIcon :icon="faKey" />
+        </span>
+        <p class="help">
+          Unique token to identify this client. Share this with external applications.
+        </p>
+      </div>
     </div>
 
     <div class="field has-text-right">
@@ -57,7 +72,7 @@ import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
-import { faLink, faServer } from '@fortawesome/free-solid-svg-icons';
+import { faLink, faServer, faKey } from '@fortawesome/free-solid-svg-icons';
 
 import ModalComponent from './ModalComponent.vue';
 
@@ -74,7 +89,8 @@ const emit = defineEmits(['close']);
 const router = useRouter();
 
 const name = ref(String());
-const jsonUrl = ref(String());
+const jsonUrl = ref('ws://localhost:8080');
+const clientToken = ref(generateToken());
 
 async function create() {
   try {
@@ -105,15 +121,21 @@ async function create() {
     await wksp.ext.newYjsdoc({
       uuid: String(), // auto
       name: name.value,
-      url: jsonUrl.value
+      url: jsonUrl.value,
+      token: clientToken.value
     });
 
     Toast.success(`JSON Doc #${name.value} created`);
     emit('close');
     name.value = String();
+    clientToken.value = generateToken(); // Generate new token for next use
   } catch (err) {
     console.error(err);
     Toast.error(`${err}`);
   }
+}
+
+function generateToken(): string {
+  return 'tok_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
 }
 </script>

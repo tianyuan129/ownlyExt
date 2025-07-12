@@ -27,6 +27,7 @@
     "@fortawesome/vue-fontawesome": "^3.0.8",
     "@milkdown/crepe": "^7.6.3",
     "@milkdown/plugin-collab": "^7.6.3",
+    "@types/fast-json-patch": "^1.0.4",
     "@zip.js/zip.js": "^2.7.57",
     "bulma": "^1.0.3",
     "clipboard": "^2.0.11",

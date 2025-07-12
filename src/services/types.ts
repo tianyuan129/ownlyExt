@@ -37,8 +37,10 @@ export type IExtYdoc = {
   uuid: string;
   /** External YDoc name */
   name: string;
-  /** External YDoc name */
+  /** External YDoc WebSocket URL */
   url: string;
+  /** Client token for identification */
+  token?: string;
 };
 
 export type IProject = {

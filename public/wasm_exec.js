@@ -14,7 +14,14 @@
 	if (!globalThis.fs) {
 		let outputBuf = "";
 		globalThis.fs = {
-			constants: { O_WRONLY: -1, O_RDWR: -1, O_CREAT: -1, O_TRUNC: -1, O_APPEND: -1, O_EXCL: -1 }, // unused
+			constants: {
+				O_WRONLY: -1,
+				O_RDWR: -1,
+				O_CREAT: -1,
+				O_TRUNC: -1,
+				O_APPEND: -1,
+				O_EXCL: -1,
+			}, // unused
 			writeSync(fd, buf) {
 				outputBuf += decoder.decode(buf);
 				const nl = outputBuf.lastIndexOf("\n");
@@ -74,19 +81,19 @@
 	}
 
 	if (!globalThis.crypto) {
-		throw new Error("globalThis.crypto is not available, polyfill required (crypto.getRandomValues only)");
+		throw new Error("globalThis.crypto is not available, see https://github.com/golang/go/wiki/WebAssembly#getting-started");
 	}
 
 	if (!globalThis.performance) {
-		throw new Error("globalThis.performance is not available, polyfill required (performance.now only)");
+		throw new Error("globalThis.performance is not available, see https://github.com/golang/go/wiki/WebAssembly#getting-started");
 	}
 
 	if (!globalThis.TextEncoder) {
-		throw new Error("globalThis.TextEncoder is not available, polyfill required");
+		throw new Error("globalThis.TextEncoder is not available, see https://github.com/golang/go/wiki/WebAssembly#getting-started");
 	}
 
 	if (!globalThis.TextDecoder) {
-		throw new Error("globalThis.TextDecoder is not available, polyfill required");
+		throw new Error("globalThis.TextDecoder is not available, see https://github.com/golang/go/wiki/WebAssembly#getting-started");
 	}
 
 	const encoder = new TextEncoder("utf-8");
@@ -111,10 +118,6 @@
 			const setInt64 = (addr, v) => {
 				this.mem.setUint32(addr + 0, v, true);
 				this.mem.setUint32(addr + 4, Math.floor(v / 4294967296), true);
-			}
-
-			const setInt32 = (addr, v) => {
-				this.mem.setUint32(addr + 0, v, true);
 			}
 
 			const getInt64 = (addr) => {
@@ -210,10 +213,7 @@
 
 			const timeOrigin = Date.now() - performance.now();
 			this.importObject = {
-				_gotest: {
-					add: (a, b) => a + b,
-				},
-				gojs: {
+				go: {
 					// Go's SP does not change as long as no Go code is running. Some operations (e.g. calls, getters and setters)
 					// may synchronously trigger a Go event handler. This makes Go code get executed in the middle of the imported
 					// function. A goroutine can switch to a new stack if the current stack is too small (see morestack function).
@@ -238,7 +238,7 @@
 						const fd = getInt64(sp + 8);
 						const p = getInt64(sp + 16);
 						const n = this.mem.getInt32(sp + 24, true);
-						fs.writeSync(fd, new Uint8Array(this._inst.exports.mem.buffer, p, n));
+						globalThis.fs.writeSync(fd, new Uint8Array(this._inst.exports.mem.buffer, p, n));
 					},
 
 					// func resetMemoryDataView()
@@ -266,6 +266,7 @@
 						sp >>>= 0;
 						const id = this._nextCallbackTimeoutID;
 						this._nextCallbackTimeoutID++;
+						const delay = getInt64(sp + 8);
 						this._scheduledTimeouts.set(id, setTimeout(
 							() => {
 								this._resume();
@@ -276,7 +277,7 @@
 									this._resume();
 								}
 							},
-							getInt64(sp + 8),
+							delay + 1, // setTimeout has been seen to fire up to 1 millisecond early
 						));
 						this.mem.setInt32(sp + 16, id, true);
 					},
@@ -351,9 +352,9 @@
 						sp >>>= 0;
 						try {
 							const v = loadValue(sp + 8);
-							const m = Reflect.get(v, loadString(sp + 16));
+							const m = loadString(sp + 16);
 							const args = loadSliceOfValues(sp + 32);
-							const result = Reflect.apply(m, v, args);
+							const result = Reflect.apply(v[m], v, args);
 							sp = this._inst.exports.getsp() >>> 0; // see comment above
 							storeValue(sp + 56, result);
 							this.mem.setUint8(sp + 64, 1);

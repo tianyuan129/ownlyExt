@@ -137,15 +137,22 @@ class NDNService {
 
     // Load the Go WASM module
     const go = new Go();
+    
+    // Fix import object to support both 'go' and 'gojs' module names
+    const importObject = {
+      ...go.importObject,
+      gojs: go.importObject.go // Alias 'go' as 'gojs' for compatibility
+    };
+    
     let result: WebAssembly.WebAssemblyInstantiatedSource;
 
     if (typeof window !== 'undefined') {
-      result = await WebAssembly.instantiateStreaming(fetch('/main.wasm'), go.importObject);
+      result = await WebAssembly.instantiateStreaming(fetch('/main.wasm'), importObject);
     } else {
       const fsImport = 'fs/promises';
       const fs = await import(/* @vite-ignore */ fsImport);
       const buffer = await fs.readFile(import.meta.dirname + '/../../main.wasm');
-      result = await WebAssembly.instantiate(buffer, go.importObject);
+      result = await WebAssembly.instantiate(buffer, importObject);
     }
 
     // Callback given by WebAssembly to set the NDN API
