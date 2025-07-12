@@ -26,20 +26,32 @@
         </p>
       </div>
       <label class="label">JSON Patch URL</label>
-      <div class="control has-icons-left">
-        <input
-          autofocus
-          class="input"
-          type="text"
-          placeholder="e.g. ws://localhost:8080"
-          v-model="jsonUrl"
-        />
-        <span class="icon is-small is-left">
-          <FontAwesomeIcon :icon="faServer" />
-        </span>
-        <p class="help">
-          The distribution point of JSON patches.
-        </p>
+      <div class="field">
+        <div class="control">
+          <div class="select is-fullwidth">
+            <select v-model="selectedRelay" @change="onRelayChange">
+              <option value="custom">Custom URL</option>
+              <option value="relay1">Relay #1 (Primary) - Analytics</option>
+              <option value="relay2">Relay #2 (Secondary) - Batch Processing</option>
+              <option value="relay3">Relay #3 (Backup) - Data Persistence</option>
+            </select>
+          </div>
+        </div>
+        <div class="control has-icons-left mt-2">
+          <input
+            class="input"
+            type="text"
+            placeholder="e.g. ws://localhost:8080"
+            v-model="jsonUrl"
+            :readonly="selectedRelay !== 'custom'"
+          />
+          <span class="icon is-small is-left">
+            <FontAwesomeIcon :icon="faServer" />
+          </span>
+          <p class="help">
+            {{ selectedRelay === 'custom' ? 'Enter your custom WebSocket URL' : 'Selected relay endpoint for JSON patches' }}
+          </p>
+        </div>
       </div>
       <label class="label">Client Token</label>
       <div class="control has-icons-left">
@@ -91,6 +103,14 @@ const router = useRouter();
 const name = ref(String());
 const jsonUrl = ref('ws://localhost:8080');
 const clientToken = ref(generateToken());
+const selectedRelay = ref('custom');
+
+// Relay server URLs
+const relayUrls = {
+  relay1: 'wss://ownly-websocket-relay-1.tianyuan-3da.workers.dev',
+  relay2: 'wss://ownly-websocket-relay-2.tianyuan-3da.workers.dev', 
+  relay3: 'wss://ownly-websocket-relay-3.tianyuan-3da.workers.dev'
+};
 
 async function create() {
   try {
@@ -117,12 +137,11 @@ async function create() {
       return;
     }
 
-    // Create Yjs Doc for this JSON
+    // Create Yjs Doc for this JSON - token will be generated per session, not stored
     await wksp.ext.newYjsdoc({
       uuid: String(), // auto
       name: name.value,
-      url: jsonUrl.value,
-      token: clientToken.value
+      url: jsonUrl.value
     });
 
     Toast.success(`JSON Doc #${name.value} created`);
@@ -137,5 +156,14 @@ async function create() {
 
 function generateToken(): string {
   return 'tok_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+}
+
+function onRelayChange() {
+  if (selectedRelay.value !== 'custom') {
+    jsonUrl.value = relayUrls[selectedRelay.value as keyof typeof relayUrls];
+  } else if (jsonUrl.value && Object.values(relayUrls).includes(jsonUrl.value)) {
+    // If switching to custom but URL is still a relay URL, clear it
+    jsonUrl.value = 'ws://localhost:8080';
+  }
 }
 </script>

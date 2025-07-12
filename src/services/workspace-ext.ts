@@ -18,6 +18,8 @@ type ExtEvents = {
 export class WorkspaceExt {
   private readonly extYjsdocs: Y.Array<IExtYdoc>;
   public readonly events = new EventEmitter() as TypedEmitter<ExtEvents>;
+  // Session tokens for active connections (not stored persistently)
+  private readonly sessionTokens = new Map<string, string>(); // uuid -> token
 
   private constructor(
     private readonly api: WorkspaceAPI,
@@ -43,10 +45,38 @@ export class WorkspaceExt {
   }
 
   public async getYjsdocs(): Promise<IExtYdoc[]> {
-    return this.extYjsdocs.toArray();
+    const yjsdocs = this.extYjsdocs.toArray();
+    // Add session tokens and last updated info to each doc
+    return yjsdocs.map(doc => ({
+      ...doc,
+      currentToken: this.sessionTokens.get(doc.uuid),
+      lastUpdated: this.getLastUpdated(doc.uuid)
+    }));
+  }
+
+  private generateSessionToken(): string {
+    return 'tok_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+  }
+
+  private getLastUpdated(uuid: string): string | undefined {
+    try {
+      // Try to get last updated from the document metadata
+      // This is a simple implementation - in practice you might want to store this separately
+      return new Date().toISOString(); // Placeholder - could be enhanced to track actual updates
+    } catch {
+      return undefined;
+    }
+  }
+
+  public getSessionToken(uuid: string): string | undefined {
+    return this.sessionTokens.get(uuid);
   }
 
   public async connect(yjsdoc: IExtYdoc) {
+    // Generate a session token for this connection
+    const sessionToken = this.generateSessionToken();
+    this.sessionTokens.set(yjsdoc.uuid, sessionToken);
+    
     // WebSocket listener
     const doc = await this.getYjsdoc(yjsdoc.uuid)
 
@@ -61,9 +91,9 @@ export class WorkspaceExt {
       try {
         const { type, name, data, token } = JSON.parse(msg);
         
-        // Validate token if provided
-        if (yjsdoc.token && token !== yjsdoc.token) {
-          console.warn(`Token mismatch: expected ${yjsdoc.token}, got ${token}`);
+        // Validate token if provided (use session token)
+        if (sessionToken && token !== sessionToken) {
+          console.warn(`Token mismatch: expected ${sessionToken}, got ${token}`);
           return;
         }
         
@@ -78,7 +108,7 @@ export class WorkspaceExt {
           const response = JSON.stringify({
             type: 'pull_response',
             name: yjsdoc.name,
-            token: yjsdoc.token,
+            token: sessionToken,
             data: jsonData,
           });
           if (socket.readyState === WebSocket.OPEN) {
@@ -111,7 +141,7 @@ export class WorkspaceExt {
         const message = JSON.stringify({
           type: 'patch',
           name: yjsdoc.name,
-          token: yjsdoc.token,
+          token: sessionToken,
           data: patches,
         });
         socket.send(message);
@@ -132,12 +162,12 @@ export class WorkspaceExt {
     const newDoc = await this.provider.getDoc(yjsdoc.uuid);
     const ydata = newDoc.getMap('root');
 
-    // Initial metadata
+    // Initial metadata (no token stored)
     ydata.set('name', yjsdoc.name);
     ydata.set('uuid', yjsdoc.uuid);
     ydata.set('url', yjsdoc.url);
-    ydata.set('token', yjsdoc.token || '');
     ydata.set('createdAt', Date().toString());
+    ydata.set('lastUpdated', Date().toString());
   }
 
   public async getYjsdoc(uuid: string): Promise<Y.Doc> {

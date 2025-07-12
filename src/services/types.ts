@@ -39,8 +39,12 @@ export type IExtYdoc = {
   name: string;
   /** External YDoc WebSocket URL */
   url: string;
-  /** Client token for identification */
+  /** Client token for identification (generated per session) */
   token?: string;
+  /** Last updated timestamp */
+  lastUpdated?: string;
+  /** Current session token (not stored, generated on connect) */
+  currentToken?: string;
 };
 
 export type IProject = {
