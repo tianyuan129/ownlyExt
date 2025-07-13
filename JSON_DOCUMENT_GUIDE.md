@@ -54,8 +54,8 @@ When viewing a JSON document in Ownly, you'll see:
 4. Open a **new** profile, join the workspace and click on `game-world`, copy the profile token $t2$.
 
 #### Step 2: Open Two Test Connections
-1. **Tab 1**: Open https://ownly-websocket-ui.pages.dev/
-2. **Tab 2**: Open https://ownly-websocket-ui.pages.dev/ in a new tab
+1. **Tab 1**: Open https://wsui.thisone.work/
+2. **Tab 2**: Open https://wsui.thisone.work/ in a new tab
 3. **Tab 3**: Keep your Ownly JSON document view open
 
 #### Step 3: Connect Both Test UIs
@@ -83,7 +83,7 @@ In the first test UI tab, send this patch to create the initial game world:
 
 **What happens**:
 - ✅ Tab 1: Sends the patch
-- ✅ Tab 2: Receives the patch message instantly  
+- ✅ Tab 2: Receives the patch message instantly 
 - ✅ Ownly: Shows the complete game world structure in real-time
 - ✅ All three locations now show the same game state
 

@@ -84,23 +84,22 @@
 </head>
 <body>
     <h1>🔗 WebSocket External JSON Sync - Test Interface</h1>
-    
+
     <div class="container">
         <div id="status" class="status disconnected">
             ❌ Disconnected
         </div>
-        
+
         <div>
             <label>WebSocket URL:</label>
             <input type="text" id="wsUrl" value="wss://ownly-websocket-relay-1.tianyuan-3da.workers.dev" style="width: 70%; display: inline-block;">
             <button id="connectBtn" style="width: 25%; display: inline-block;">Connect</button>
         </div>
-        
+
         <div style="margin-top: 15px;">
             <label>Client Token:</label>
-            <input type="text" id="clientToken" placeholder="tok_xxxxxxxxxxxxx" style="width: 70%; display: inline-block;">
-            <button id="registerBtn" style="width: 25%; display: inline-block;" disabled>Register Token</button>
-            <p style="font-size: 12px; color: #666; margin: 5px 0;">Enter the token from Ownly to identify this client</p>
+            <input type="text" id="clientToken" placeholder="tok_xxxxxxxxxxxxx" style="width: 100%;">
+            <p style="font-size: 12px; color: #666; margin: 5px 0;">Enter the token from Ownly to identify this client (Auto-register upon connect)</p>
         </div>
     </div>
 
@@ -161,7 +160,7 @@
         }
 
         function updateConnectionStatus(connected) {
-            const buttons = ['pullBtn', 'pushBtn', 'patchBtn', 'registerBtn'];
+            const buttons = ['pullBtn', 'pushBtn', 'patchBtn'];
             buttons.forEach(id => {
                 document.getElementById(id).disabled = !connected;
             });
@@ -204,7 +203,7 @@
                 logMessage('Connected successfully!', 'success');
                 updateConnectionStatus(true);
                 connectBtn.disabled = false;
-                
+
                 // Register token if provided
                 const token = document.getElementById('clientToken').value;
                 if (token) {
@@ -241,12 +240,12 @@
                 logMessage('Token is required for registration', 'error');
                 return;
             }
-            
+
             const registerMessage = {
                 type: 'register',
                 token: token
             };
-            
+
             const jsonStr = JSON.stringify(registerMessage);
             logMessage(`📝 Registering token: ${jsonStr}`);
             ws.send(jsonStr);
@@ -318,10 +317,6 @@
 
         // Event listeners
         connectBtn.addEventListener('click', connect);
-        document.getElementById('registerBtn').addEventListener('click', () => {
-            const token = document.getElementById('clientToken').value;
-            registerToken(token);
-        });
         document.getElementById('pullBtn').addEventListener('click', pullDocument);
         document.getElementById('pushBtn').addEventListener('click', pushDocument);
         document.getElementById('patchBtn').addEventListener('click', patchDocument);
