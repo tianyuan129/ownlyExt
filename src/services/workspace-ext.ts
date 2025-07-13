@@ -6,7 +6,7 @@ import { GlobalBus } from '@/services/event-bus';
 import { SvsProvider } from '@/services/svs-provider';
 import type { IExtYdoc } from '@/services/types';
 import { wsConn } from '@/utils/wsconn';
-import { applyJsonPatchToYDoc, observeYDocForPatches, jsonToYDoc } from '@/utils/json-to-ymap';
+import { applyJsonPatchToYDoc, observeYDocForPatches, jsonToYDoc, convertYTypeToJson } from '@/utils/json-to-ymap';
 import type TypedEmitter from 'typed-emitter';
 import type { WorkspaceAPI } from './ndn';
 import type { Operation } from 'fast-json-patch';
@@ -18,8 +18,8 @@ type ExtEvents = {
 export class WorkspaceExt {
   private readonly extYjsdocs: Y.Array<IExtYdoc>;
   public readonly events = new EventEmitter() as TypedEmitter<ExtEvents>;
-  // Session tokens for active connections (not stored persistently)
-  private readonly sessionTokens = new Map<string, string>(); // uuid -> token
+  // Profile token for this workspace (unique per browser profile and workspace)
+  private workspaceProfileToken: string | null = null;
 
   private constructor(
     private readonly api: WorkspaceAPI,
@@ -46,16 +46,40 @@ export class WorkspaceExt {
 
   public async getYjsdocs(): Promise<IExtYdoc[]> {
     const yjsdocs = this.extYjsdocs.toArray();
-    // Add session tokens and last updated info to each doc
+    // Add profile token and last updated info to each doc
+    const profileToken = this.getOrCreateProfileToken();
     return yjsdocs.map(doc => ({
       ...doc,
-      currentToken: this.sessionTokens.get(doc.uuid),
+      currentToken: profileToken,
       lastUpdated: this.getLastUpdated(doc.uuid)
     }));
   }
 
-  private generateSessionToken(): string {
+  private generateProfileToken(): string {
     return 'tok_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+  }
+
+  private getOrCreateProfileToken(): string {
+    // Return cached token if already loaded
+    if (this.workspaceProfileToken) {
+      return this.workspaceProfileToken;
+    }
+
+    // Check localStorage for existing workspace profile token
+    const storageKey = `ownly_profile_token_${this.api.group}`;
+    const existingToken = localStorage.getItem(storageKey);
+
+    if (existingToken) {
+      this.workspaceProfileToken = existingToken;
+      return existingToken;
+    }
+
+    // Generate new profile token and store in localStorage
+    const newToken = this.generateProfileToken();
+    this.workspaceProfileToken = newToken;
+    localStorage.setItem(storageKey, newToken);
+
+    return newToken;
   }
 
   private getLastUpdated(uuid: string): string | undefined {
@@ -68,47 +92,59 @@ export class WorkspaceExt {
     }
   }
 
-  public getSessionToken(uuid: string): string | undefined {
-    return this.sessionTokens.get(uuid);
+  public getProfileToken(): string {
+    return this.getOrCreateProfileToken();
   }
 
   public async connect(yjsdoc: IExtYdoc) {
-    // Generate a session token for this connection
-    const sessionToken = this.generateSessionToken();
-    this.sessionTokens.set(yjsdoc.uuid, sessionToken);
-    
+    // Get the profile token for this workspace
+    const profileToken = this.getOrCreateProfileToken();
+
     // WebSocket listener
     const doc = await this.getYjsdoc(yjsdoc.uuid)
 
     // Helper function to convert Yjs doc to JSON
     const convertDocToJson = () => {
       const rootMap = doc.getMap('root');
-      return rootMap.toJSON();
+      return convertYTypeToJson(rootMap);
     };
 
     // receive
     const socket = await wsConn(yjsdoc.url, (msg: string) => {
       try {
         const { type, name, data, token } = JSON.parse(msg);
-        
-        // Validate token if provided (use session token)
-        if (sessionToken && token !== sessionToken) {
-          console.warn(`Token mismatch: expected ${sessionToken}, got ${token}`);
+        // console.log(JSON.parse(msg))
+
+        // Handle registration response
+        if (type === 'registered') {
+          console.log(`✅ [Ownly] Token registered successfully for ${yjsdoc.name}`);
           return;
         }
-        
+
+        // Handle errors
+        if (type === 'error') {
+          console.error(`❌ [Ownly] Relay error: ${data || 'Unknown error'}`);
+          return;
+        }
+
+        // Validate token only if both profile token and incoming token exist
+        if (profileToken && token && token !== profileToken) {
+          console.warn(`Token mismatch: expected ${profileToken}, got ${token}`);
+          return;
+        }
+
         if (name !== yjsdoc.name) return;
-        
+
         if (type === 'patch') {
           applyJsonPatchToYDoc(doc, data);
           this.events.emit('ext', yjsdoc.uuid, Date().toString());
         } else if (type === 'pull') {
-          // Send the entire JSON document to the client
+          // Respond to pull request from other connection
           const jsonData = convertDocToJson();
           const response = JSON.stringify({
             type: 'pull_response',
             name: yjsdoc.name,
-            token: sessionToken,
+            token: profileToken,
             data: jsonData,
           });
           if (socket.readyState === WebSocket.OPEN) {
@@ -134,6 +170,18 @@ export class WorkspaceExt {
       }
     });
 
+    // Send registration message first to register token with relay
+    setTimeout(() => {
+      if (socket.readyState === WebSocket.OPEN) {
+        const registerMessage = JSON.stringify({
+          type: 'register',
+          token: profileToken,
+        });
+        socket.send(registerMessage);
+        console.log(`📝 [Ownly] Registering token for ${yjsdoc.name}`);
+      }
+    }, 500); // Wait 0.5s for connection to stabilize
+
     // send
     observeYDocForPatches(doc, (patches: Operation[]) => {
       this.events.emit('ext', yjsdoc.uuid, Date().toString());
@@ -141,7 +189,7 @@ export class WorkspaceExt {
         const message = JSON.stringify({
           type: 'patch',
           name: yjsdoc.name,
-          token: sessionToken,
+          token: profileToken,
           data: patches,
         });
         socket.send(message);

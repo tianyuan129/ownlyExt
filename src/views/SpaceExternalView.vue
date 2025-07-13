@@ -14,19 +14,19 @@
         <div class="level-right">
           <div class="level-item">
             <div class="token-display">
-              <label class="label is-small">Current Session Token:</label>
+              <label class="label is-small">Profile Token:</label>
               <div class="field has-addons">
                 <div class="control is-expanded">
-                  <input 
-                    class="input is-small" 
-                    type="text" 
-                    :value="currentToken || 'No active connection'" 
+                  <input
+                    class="input is-small"
+                    type="text"
+                    :value="currentToken || 'No active connection'"
                     readonly
                   />
                 </div>
                 <div class="control">
-                  <button 
-                    class="button is-small is-light" 
+                  <button
+                    class="button is-small is-light"
                     @click="copyToken"
                     :disabled="!currentToken"
                     title="Copy token"
@@ -35,13 +35,13 @@
                   </button>
                 </div>
               </div>
-              <p class="help is-size-7">Share this token with external applications to connect</p>
+              <p class="help is-size-7">Unique token for this browser profile and workspace. Share with external applications to connect</p>
             </div>
           </div>
         </div>
       </div>
     </div>
-    
+
     <!-- JSON Content -->
     <JsonViewer :value="jsonData" copyable boxed sort theme="dark" />
   </div>
@@ -101,9 +101,9 @@ async function setup() {
 
     // Attempt to establish/re-establish the WebSocket connection
     await wksp.value.ext.connect(result);
-    
-    // Get the session token after connecting
-    currentToken.value = wksp.value.ext.getSessionToken(result.uuid);
+
+    // Get the profile token after connecting
+    currentToken.value = wksp.value.ext.getProfileToken();
   } catch (err) {
     Toast.error('Failed to establish connection. Please try again.');
     console.error('WS Setup Error:', err);
@@ -124,7 +124,7 @@ function onExtUpdate(uuid: string, timestamp: string) {
 // Copy token to clipboard
 async function copyToken() {
   if (!currentToken.value) return;
-  
+
   try {
     await navigator.clipboard.writeText(currentToken.value);
     Toast.success('Token copied to clipboard!');
@@ -159,6 +159,7 @@ async function copyToken() {
   font-family: 'Monaco', 'Menlo', monospace;
   font-size: 0.8rem;
   background-color: #f5f5f5;
+  border: 1px solid #dbdbdb;
 }
 
 .token-display .label {
@@ -172,15 +173,101 @@ async function copyToken() {
   color: #757575;
 }
 
+/* Dark theme styles */
+@media (prefers-color-scheme: dark) {
+  .doc-info-header {
+    border-bottom: 1px solid #4a4a4a;
+  }
+
+  .token-display .input {
+    background-color: #2b2b2b;
+    border: 1px solid #4a4a4a;
+    color: #f5f5f5;
+  }
+
+  .token-display .input:focus {
+    border-color: #00d1b2;
+    box-shadow: 0 0 0 0.125em rgba(0, 209, 178, 0.25);
+  }
+
+  .token-display .label {
+    color: #f5f5f5;
+  }
+
+  .token-display .help {
+    color: #b5b5b5;
+  }
+
+  .token-display .button {
+    background-color: #363636;
+    border-color: #4a4a4a;
+    color: #f5f5f5;
+  }
+
+  .token-display .button:hover:not(:disabled) {
+    background-color: #4a4a4a;
+    border-color: #6a6a6a;
+  }
+
+  .token-display .button:disabled {
+    background-color: #1e1e1e;
+    border-color: #363636;
+    color: #6a6a6a;
+  }
+}
+
+/* Light theme explicit styles (for clarity) */
+@media (prefers-color-scheme: light) {
+  .doc-info-header {
+    border-bottom: 1px solid #e5e5e5;
+  }
+
+  .token-display .input {
+    background-color: #f5f5f5;
+    border: 1px solid #dbdbdb;
+    color: #363636;
+  }
+
+  .token-display .input:focus {
+    border-color: #00d1b2;
+    box-shadow: 0 0 0 0.125em rgba(0, 209, 178, 0.25);
+  }
+
+  .token-display .label {
+    color: #4a4a4a;
+  }
+
+  .token-display .help {
+    color: #757575;
+  }
+
+  .token-display .button {
+    background-color: #f5f5f5;
+    border-color: #dbdbdb;
+    color: #363636;
+  }
+
+  .token-display .button:hover:not(:disabled) {
+    background-color: #eeeeee;
+    border-color: #b5b5b5;
+  }
+
+  .token-display .button:disabled {
+    background-color: #f5f5f5;
+    border-color: #dbdbdb;
+    color: #a0a0a0;
+  }
+}
+
 @media (max-width: 768px) {
   .level {
     display: block !important;
   }
-  
+
   .level-right {
     margin-top: 1rem;
   }
-  
+
   .token-display {
     min-width: auto;
     width: 100%;

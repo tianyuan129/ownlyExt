@@ -1,0 +1,21 @@
+{
+  "name": "ownly-websocket-relays",
+  "version": "1.0.0",
+  "description": "Consolidated WebSocket relay servers for Ownly JSON documents",
+  "scripts": {
+    "deploy:all": "npm run deploy:relay1 && npm run deploy:relay2 && npm run deploy:relay3",
+    "deploy:relay1": "wrangler deploy --config deployments/wrangler-relay-1.toml --env=''",
+    "deploy:relay2": "wrangler deploy --config deployments/wrangler-relay-2.toml --env=''",
+    "deploy:relay3": "wrangler deploy --config deployments/wrangler-relay-3.toml --env=''",
+    "dev:relay1": "wrangler dev --config deployments/wrangler-relay-1.toml --local",
+    "dev:relay2": "wrangler dev --config deployments/wrangler-relay-2.toml --local",
+    "dev:relay3": "wrangler dev --config deployments/wrangler-relay-3.toml --local",
+    "stats:relay1": "curl https://ownly-websocket-relay-1.tianyuan-3da.workers.dev/stats",
+    "stats:relay2": "curl https://ownly-websocket-relay-2.tianyuan-3da.workers.dev/stats",
+    "stats:relay3": "curl https://ownly-websocket-relay-3.tianyuan-3da.workers.dev/stats",
+    "health:all": "npm run stats:relay1 && npm run stats:relay2 && npm run stats:relay3"
+  },
+  "keywords": ["websocket", "relay", "ownly", "cloudflare-workers", "durable-objects"],
+  "author": "Ownly Team",
+  "license": "MIT"
+}

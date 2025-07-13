@@ -31,9 +31,9 @@
           <div class="select is-fullwidth">
             <select v-model="selectedRelay" @change="onRelayChange">
               <option value="custom">Custom URL</option>
-              <option value="relay1">Relay #1 (Primary) - Analytics</option>
-              <option value="relay2">Relay #2 (Secondary) - Batch Processing</option>
-              <option value="relay3">Relay #3 (Backup) - Data Persistence</option>
+              <option value="relay1">Relay #1 (Primary)</option>
+              <option value="relay2">Relay #2 (Secondary)</option>
+              <option value="relay3">Relay #3 (Backup)</option>
             </select>
           </div>
         </div>
@@ -53,21 +53,6 @@
           </p>
         </div>
       </div>
-      <label class="label">Client Token</label>
-      <div class="control has-icons-left">
-        <input
-          class="input"
-          type="text"
-          readonly
-          :value="clientToken"
-        />
-        <span class="icon is-small is-left">
-          <FontAwesomeIcon :icon="faKey" />
-        </span>
-        <p class="help">
-          Unique token to identify this client. Share this with external applications.
-        </p>
-      </div>
     </div>
 
     <div class="field has-text-right">
@@ -84,7 +69,7 @@ import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
-import { faLink, faServer, faKey } from '@fortawesome/free-solid-svg-icons';
+import { faLink, faServer } from '@fortawesome/free-solid-svg-icons';
 
 import ModalComponent from './ModalComponent.vue';
 
@@ -102,7 +87,6 @@ const router = useRouter();
 
 const name = ref(String());
 const jsonUrl = ref('ws://localhost:8080');
-const clientToken = ref(generateToken());
 const selectedRelay = ref('custom');
 
 // Relay server URLs
@@ -147,15 +131,10 @@ async function create() {
     Toast.success(`JSON Doc #${name.value} created`);
     emit('close');
     name.value = String();
-    clientToken.value = generateToken(); // Generate new token for next use
   } catch (err) {
     console.error(err);
     Toast.error(`${err}`);
   }
-}
-
-function generateToken(): string {
-  return 'tok_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
 }
 
 function onRelayChange() {

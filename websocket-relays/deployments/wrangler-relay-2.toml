@@ -2,6 +2,16 @@ name = "ownly-websocket-relay-2"
 main = "websocket-handler.js"
 compatibility_date = "2024-07-01"
 
+# Durable Objects configuration
+[[durable_objects.bindings]]
+name = "RELAY_DURABLE_OBJECT"
+class_name = "RelayDurableObject"
+
+# Durable Objects migrations (SQLite for free plan)
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["RelayDurableObject"]
+
 # WebSocket Relay #2 - Secondary Server (High-Throughput)
 [env.production]
 name = "ownly-websocket-relay-2-prod"

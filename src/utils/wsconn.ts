@@ -1,38 +1,20 @@
 export async function wsConn(url: string, onMessage: (data: any) => void): Promise<WebSocket> {
-  // Get all available relay endpoints
-  const relayEndpoints = [
-    import.meta.env.VITE_WEBSOCKET_URL_PRIMARY,
-    import.meta.env.VITE_WEBSOCKET_URL_SECONDARY,
-    import.meta.env.VITE_WEBSOCKET_URL_BACKUP,
-    url // Use provided URL as fallback
-  ].filter(Boolean);
-
-  console.log(`🔗 Available relay endpoints: ${relayEndpoints.length}`);
-
-  // Try each endpoint until one connects
-  for (let i = 0; i < relayEndpoints.length; i++) {
-    const endpoint = relayEndpoints[i];
     try {
-      console.log(`🔄 Attempting connection ${i + 1}/${relayEndpoints.length}: ${endpoint}`);
-      const socket = await connectToSingleEndpoint(endpoint, onMessage);
-      console.log(`✅ Connected to relay: ${endpoint}`);
+      const socket = await connectToSingleEndpoint(url, onMessage);
+      console.log(`✅ Connected to relay: ${url}`);
       return socket;
     } catch (error) {
-      console.warn(`❌ Failed to connect to ${endpoint}:`, error);
-      if (i === relayEndpoints.length - 1) {
-        throw new Error(`Failed to connect to any relay endpoint. Last error: ${error}`);
-      }
+      console.warn(`❌ Failed to connect to ${url}:`, error);
     }
-  }
 
-  throw new Error('No relay endpoints available');
+  throw new Error('Relay unavailable');
 }
 
 function connectToSingleEndpoint(url: string, onMessage: (data: any) => void): Promise<WebSocket> {
   return new Promise((resolve, reject) => {
     const socket = new WebSocket(url);
     let connected = false;
-    
+
     const timeout = setTimeout(() => {
       if (!connected) {
         socket.close();

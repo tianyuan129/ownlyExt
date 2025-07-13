@@ -92,13 +92,14 @@
         
         <div>
             <label>WebSocket URL:</label>
-            <input type="text" id="wsUrl" value="wss://ownly-websocket.tianyuan-3da.workers.dev" style="width: 70%; display: inline-block;">
+            <input type="text" id="wsUrl" value="wss://ownly-websocket-relay-1.tianyuan-3da.workers.dev" style="width: 70%; display: inline-block;">
             <button id="connectBtn" style="width: 25%; display: inline-block;">Connect</button>
         </div>
         
         <div style="margin-top: 15px;">
             <label>Client Token:</label>
-            <input type="text" id="clientToken" placeholder="tok_xxxxxxxxxxxxx" style="width: 100%;">
+            <input type="text" id="clientToken" placeholder="tok_xxxxxxxxxxxxx" style="width: 70%; display: inline-block;">
+            <button id="registerBtn" style="width: 25%; display: inline-block;" disabled>Register Token</button>
             <p style="font-size: 12px; color: #666; margin: 5px 0;">Enter the token from Ownly to identify this client</p>
         </div>
     </div>
@@ -160,7 +161,7 @@
         }
 
         function updateConnectionStatus(connected) {
-            const buttons = ['pullBtn', 'pushBtn', 'patchBtn'];
+            const buttons = ['pullBtn', 'pushBtn', 'patchBtn', 'registerBtn'];
             buttons.forEach(id => {
                 document.getElementById(id).disabled = !connected;
             });
@@ -177,19 +178,38 @@
         }
 
         function connect() {
-            if (ws && ws.readyState === WebSocket.OPEN) {
+            // If already connected, disconnect
+            if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+                logMessage('Disconnecting...', 'info');
                 ws.close();
+                ws = null;
+                updateConnectionStatus(false);
                 return;
             }
 
             const url = document.getElementById('wsUrl').value;
+            if (!url) {
+                logMessage('WebSocket URL is required', 'error');
+                return;
+            }
+
             logMessage(`Connecting to ${url}...`);
+            updateConnectionStatus(false); // Reset status during connection attempt
+            connectBtn.textContent = 'Connecting...';
+            connectBtn.disabled = true;
 
             ws = new WebSocket(url);
 
             ws.onopen = () => {
                 logMessage('Connected successfully!', 'success');
                 updateConnectionStatus(true);
+                connectBtn.disabled = false;
+                
+                // Register token if provided
+                const token = document.getElementById('clientToken').value;
+                if (token) {
+                    registerToken(token);
+                }
             };
 
             ws.onmessage = (event) => {
@@ -201,15 +221,35 @@
                 }
             };
 
-            ws.onclose = () => {
-                logMessage('Connection closed', 'error');
+            ws.onclose = (event) => {
+                logMessage(`Connection closed (code: ${event.code})`, 'error');
                 updateConnectionStatus(false);
+                connectBtn.disabled = false;
+                ws = null;
             };
 
             ws.onerror = (error) => {
                 logMessage(`Connection error: ${error}`, 'error');
                 updateConnectionStatus(false);
+                connectBtn.disabled = false;
+                ws = null;
             };
+        }
+
+        function registerToken(token) {
+            if (!token) {
+                logMessage('Token is required for registration', 'error');
+                return;
+            }
+            
+            const registerMessage = {
+                type: 'register',
+                token: token
+            };
+            
+            const jsonStr = JSON.stringify(registerMessage);
+            logMessage(`📝 Registering token: ${jsonStr}`);
+            ws.send(jsonStr);
         }
 
         function sendMessage(message) {
@@ -278,6 +318,10 @@
 
         // Event listeners
         connectBtn.addEventListener('click', connect);
+        document.getElementById('registerBtn').addEventListener('click', () => {
+            const token = document.getElementById('clientToken').value;
+            registerToken(token);
+        });
         document.getElementById('pullBtn').addEventListener('click', pullDocument);
         document.getElementById('pushBtn').addEventListener('click', pushDocument);
         document.getElementById('patchBtn').addEventListener('click', patchDocument);

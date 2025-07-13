@@ -161,8 +161,8 @@ export function observeYDocForPatches(doc: Y.Doc, callback: PatchCallback): void
   const rootMap = doc.getMap('root');
 
   const observer = (events: (Y.YMapEvent<any> | Y.YArrayEvent<any>)[], transaction: Y.Transaction) => {
-    if (transaction.origin === 'local' || transaction.origin === 'external_push') {
-      return; // Ignore changes made by applyJsonPatchToYDoc and external push operations
+    if (transaction.origin === 'local' || transaction.origin === 'external_push' || transaction.origin === 'external_pull_response') {
+      return; // Ignore changes made by applyJsonPatchToYDoc, external push, and pull response operations
     }
 
     const patches: Operation[] = [];
@@ -267,7 +267,7 @@ function handleArrayEvent(event: Y.YArrayEvent<any>, basePath: (string | number)
 }
 
 // Helper function to convert Y.Map/Y.Array instances back to plain JSON for patches
-function convertYTypeToJson(yValue: any): any {
+export function convertYTypeToJson(yValue: any): any {
   if (yValue instanceof Y.Map) {
     const obj: { [key: string]: any } = {};
     yValue.forEach((value, key) => {

@@ -36,3 +36,6 @@ coverage
 
 # Node.js
 /headless/
+
+# Misc
+.wrangler/

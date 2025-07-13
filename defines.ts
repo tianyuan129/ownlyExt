@@ -15,9 +15,9 @@ export default {
   __BUILD_VERSION__: JSON.stringify(dateFmt.format(new Date()).replace(/\D/g, '')),
 
   // Environment variables for different deployment environments
-  'import.meta.env.VITE_WEBSOCKET_URL': JSON.stringify(process.env.VITE_WEBSOCKET_URL || 'ws://localhost:3001'),
-  'import.meta.env.VITE_WEBSOCKET_URL_PRIMARY': JSON.stringify(process.env.VITE_WEBSOCKET_URL_PRIMARY || 'ws://localhost:3001'),
-  'import.meta.env.VITE_WEBSOCKET_URL_SECONDARY': JSON.stringify(process.env.VITE_WEBSOCKET_URL_SECONDARY || 'ws://localhost:3002'),
-  'import.meta.env.VITE_WEBSOCKET_URL_BACKUP': JSON.stringify(process.env.VITE_WEBSOCKET_URL_BACKUP || 'ws://localhost:3003'),
+  'import.meta.env.VITE_WEBSOCKET_URL': JSON.stringify(process.env.VITE_WEBSOCKET_URL || 'wss://ownly-websocket-relay-1.tianyuan-3da.workers.dev'),
+  'import.meta.env.VITE_WEBSOCKET_URL_PRIMARY': JSON.stringify(process.env.VITE_WEBSOCKET_URL_PRIMARY || 'wss://ownly-websocket-relay-1.tianyuan-3da.workers.dev'),
+  'import.meta.env.VITE_WEBSOCKET_URL_SECONDARY': JSON.stringify(process.env.VITE_WEBSOCKET_URL_SECONDARY || 'wss://ownly-websocket-relay-2.tianyuan-3da.workers.dev'),
+  'import.meta.env.VITE_WEBSOCKET_URL_BACKUP': JSON.stringify(process.env.VITE_WEBSOCKET_URL_BACKUP || 'wss://ownly-websocket-relay-3.tianyuan-3da.workers.dev'),
   'import.meta.env.VITE_DEBUG': JSON.stringify(process.env.VITE_DEBUG === 'true'),
 };
