@@ -115,6 +115,12 @@ export class WorkspaceExt {
         const { type, name, data, token } = JSON.parse(msg);
         // console.log(JSON.parse(msg))
 
+        // Handle register messages (accept but do nothing)
+        if (type === 'register') {
+          // Silently accept register messages without any action
+          return;
+        }
+
         // Handle registration response
         if (type === 'registered') {
           console.log(`✅ [Ownly] Token registered successfully for ${yjsdoc.name}`);
