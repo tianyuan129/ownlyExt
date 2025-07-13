@@ -128,6 +128,8 @@ You've now demonstrated:
    ```
 > Token registrations share lifetime with WebSocket connections. **In Relay mode**, a token can at most be registered twice (two active connections), one representing Ownly-Relay, the other representing Relay-LocalApp
 
+![Two Cases](./two-cases.png)
+
 ### Message Types
 
 #### 1. Register (`register`)
