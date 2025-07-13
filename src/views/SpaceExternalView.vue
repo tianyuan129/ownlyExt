@@ -128,7 +128,7 @@ async function copyToken() {
   try {
     await navigator.clipboard.writeText(currentToken.value);
     Toast.success('Token copied to clipboard!');
-  } catch (err) {
+  } catch {
     // Fallback for older browsers
     const textArea = document.createElement('textarea');
     textArea.value = currentToken.value;

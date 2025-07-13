@@ -2,7 +2,7 @@ module github.com/pulsejet/ownly/ndn
 
 go 1.23.4
 
-require github.com/named-data/ndnd v1.4.3
+require github.com/named-data/ndnd v1.5.2
 
 require (
 	github.com/cespare/xxhash v1.1.0 // indirect
@@ -25,5 +25,3 @@ require (
 	golang.org/x/sys v0.32.0 // indirect
 	google.golang.org/protobuf v1.36.6 // indirect
 )
-
-replace github.com/named-data/ndnd => ../../ndnd

@@ -1,5 +1,5 @@
 name = "ownly-websocket-relay-2"
-main = "websocket-handler.js"
+main = "../src/websocket-handler.js"
 compatibility_date = "2024-07-01"
 
 # Durable Objects configuration

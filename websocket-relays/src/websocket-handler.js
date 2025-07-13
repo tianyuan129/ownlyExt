@@ -8,7 +8,7 @@ import { RelayDurableObject } from './relay-durable-object.js';
 export { RelayDurableObject };
 
 export default {
-  async fetch(request, env, ctx) {
+  async fetch(request, env) {
     const url = new URL(request.url);
 
     // Handle WebSocket upgrade with Durable Object

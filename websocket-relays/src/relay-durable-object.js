@@ -171,7 +171,7 @@ export class RelayDurableObject {
             if (ws.readyState === WebSocket.OPEN) {
               ws.close(1000, 'Token evicted due to limit');
             }
-          } catch (err) {
+          } catch {
             // Ignore close errors
           }
         }

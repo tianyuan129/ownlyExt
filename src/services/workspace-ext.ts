@@ -51,7 +51,7 @@ export class WorkspaceExt {
     return yjsdocs.map(doc => ({
       ...doc,
       currentToken: profileToken,
-      lastUpdated: this.getLastUpdated(doc.uuid)
+      lastUpdated: this.getLastUpdated()
     }));
   }
 
@@ -82,7 +82,7 @@ export class WorkspaceExt {
     return newToken;
   }
 
-  private getLastUpdated(uuid: string): string | undefined {
+  private getLastUpdated(): string | undefined {
     try {
       // Try to get last updated from the document metadata
       // This is a simple implementation - in practice you might want to store this separately
