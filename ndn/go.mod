@@ -2,7 +2,7 @@ module github.com/pulsejet/ownly/ndn
 
 go 1.23.4
 
-require github.com/named-data/ndnd v1.5.2
+require github.com/named-data/ndnd v1.5.3-0.20250712020000-ed6bc2901834
 
 require (
 	github.com/cespare/xxhash v1.1.0 // indirect
@@ -13,6 +13,7 @@ require (
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/google/flatbuffers v25.2.10+incompatible // indirect
+	github.com/gorilla/schema v1.4.1 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/klauspost/compress v1.18.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect

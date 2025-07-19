@@ -55,7 +55,7 @@ func (a *App) JoinWorkspace(wkspStr_ string, create bool) (wkspStr string, err e
 	// If not existing, check the create flag and proceed
 
 	// Get a valid identity key to sign the certificate
-	idSigner, _, _ := a.GetTestbedKey()
+	idSigner, _ := a.GetTestbedKey()
 	if idSigner == nil {
 		err = fmt.Errorf("no identity key found")
 		return
@@ -151,7 +151,7 @@ func (a *App) IsWorkspaceOwner(wkspStr string) (bool, error) {
 		return false, err
 	}
 
-	idKey, _, _ := a.GetTestbedKey()
+	idKey, _ := a.GetTestbedKey()
 	if idKey == nil {
 		return false, fmt.Errorf("no testbed key")
 	}
@@ -164,25 +164,20 @@ func (a *App) IsWorkspaceOwner(wkspStr string) (bool, error) {
 }
 
 // GetWorkspace returns a JS object representing the workspace with the given name.
-func (a *App) GetWorkspace(groupStr string) (api js.Value, err error) {
+func (a *App) GetWorkspace(groupStr string, ignoreValidity bool) (api js.Value, err error) {
 	group, err := enc.NameFromStr(groupStr)
 	if err != nil {
 		return
 	}
 
 	// Create trust configuration
-	schema, err := trust_schema.NewLvsSchema(SchemaBytes)
+	trust, err := getTrustConfig(a.keychain)
 	if err != nil {
 		return
 	}
-	trust, err := security.NewTrustConfig(a.keychain, schema, []enc.Name{testbedRootName})
-	if err != nil {
-		return
-	}
-	trust.UseDataNameFwHint = true
 
 	// Get identity key to use (same as testbed key)
-	idKey, idCertData, idCertSigCov := a.GetTestbedKey()
+	idKey, _ := a.GetTestbedKey()
 	if idKey == nil {
 		err = fmt.Errorf("no valid testbed key found")
 		return
@@ -217,25 +212,6 @@ func (a *App) GetWorkspace(groupStr string) (api js.Value, err error) {
 			if err := client.Start(); err != nil {
 				return nil, err
 			}
-
-			// When connected to testbed, verify the identity certificate
-			// (so that the certs get fetched)
-			a.ExecWithConnectivity(func() {
-				client.ValidateExt(ndn.ValidateExtArgs{
-					Data:       idCertData,
-					SigCovered: idCertSigCov,
-					Callback: func(b bool, err error) {
-						if err != nil {
-							log.Error(a, "Failed to validate identity cert", "err", err)
-						} else {
-							log.Info(a, "Identity cert validated", "name", idName)
-						}
-					},
-
-					// Testbed configuration - announce site CA certs directly
-					UseDataNameFwHint: optional.Some(false),
-				})
-			})
 
 			return nil, nil
 		}),
@@ -275,9 +251,10 @@ func (a *App) GetWorkspace(groupStr string) (api js.Value, err error) {
 			// Fetch the content from the network
 			ch := make(chan ndn.ConsumeState)
 			client.ConsumeExt(ndn.ConsumeExtArgs{
-				Name:     name,
-				TryStore: true,
-				Callback: func(state ndn.ConsumeState) { ch <- state },
+				Name:           name,
+				TryStore:       true,
+				IgnoreValidity: optional.Some(ignoreValidity),
+				Callback:       func(state ndn.ConsumeState) { ch <- state },
 			})
 			state := <-ch
 			if err := state.Error(); err != nil {
@@ -309,14 +286,16 @@ func (a *App) GetWorkspace(groupStr string) (api js.Value, err error) {
 				InitialState: stateWire,
 
 				Svs: ndn_sync.SvSyncOpts{
-					Client:      client,
-					GroupPrefix: svsAloGroup,
+					Client:         client,
+					GroupPrefix:    svsAloGroup,
+					IgnoreValidity: optional.Some(ignoreValidity),
 				},
 
 				Snapshot: &ndn_sync.SnapshotNodeHistory{
-					Client:    client,
-					Threshold: SnapshotThreshold,
-					Compress:  CompressSnapshotYjs,
+					Client:         client,
+					Threshold:      SnapshotThreshold,
+					Compress:       CompressSnapshotYjs,
+					IgnoreValidity: optional.Some(ignoreValidity),
 				},
 
 				MulticastPrefix: multicastPrefix,
@@ -427,12 +406,24 @@ func (a *App) SvsAloJs(client ndn.Client, alo *ndn_sync.SvsALO, persistState js.
 			return nil, nil
 		}),
 
-		// set_on_error(): Promise<void>;
+		// set_on_error(): void;
 		"set_on_error": js.FuncOf(func(this js.Value, p []js.Value) any {
 			alo.SetOnError(func(err error) {
 				p[0].Invoke(js.ValueOf(err.Error()))
 			})
 			return nil
+		}),
+
+		// names(): Promise<string[]>;
+		"names": jsutil.AsyncFunc(func(this js.Value, p []js.Value) (any, error) {
+			names := alo.SVS().GetNames()
+
+			arr := js.Global().Get("Array").New()
+			for _, name := range names {
+				arr.Call("push", js.ValueOf(name.String()))
+			}
+
+			return arr, nil
 		}),
 
 		// pub_yjs_delta(binary: Uint8Array): Promise<void>;

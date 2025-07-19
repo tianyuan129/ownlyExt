@@ -34,7 +34,7 @@ export class Workspace {
     public readonly ext: WorkspaceExt,
     public readonly proj: WorkspaceProjManager,
     public readonly invite: WorkspaceInviteManager,
-  ) {}
+  ) { }
 
   /**
    * Start the workspace.
@@ -45,7 +45,7 @@ export class Workspace {
     await ndn.api.connect_testbed();
 
     // Set up client and ALO
-    const api = await ndn.api.get_workspace(metadata.name);
+    const api = await ndn.api.get_workspace(metadata.name, metadata.ignore);
     await api.start();
 
     // Create general SVS group
@@ -71,6 +71,7 @@ export class Workspace {
     await this.ext.destroy();
     await this.provider?.destroy();
     await this.api?.stop();
+    await this.invite.destroy();
   }
 
   /**
@@ -79,6 +80,15 @@ export class Workspace {
    */
   get username(): string {
     return this.api.name;
+  }
+
+  /**
+   * Get the members of the workspace.
+   * This currently returns the names in the root svs group;
+   * this may not include everyone, e.g. if they never published.
+   */
+  public async getMembers(): Promise<string[]> {
+    return await this.provider.svs.names();
   }
 
   /**
@@ -161,7 +171,7 @@ export class Workspace {
    * @param wksp Workspace name
    * @param create Create the workspace if it does not exist
    */
-  public static async join(label: string, wksp: string, create: boolean): Promise<string> {
+  public static async join(label: string, wksp: string, create: boolean, ignore: boolean): Promise<string> {
     const metadata = await _o.stats.get(wksp);
     if (metadata) throw new Error('You have already joined this workspace');
 
@@ -176,6 +186,7 @@ export class Workspace {
       label: label,
       name: finalName,
       owner: isOwner,
+      ignore: ignore,
       pendingSetup: create ? true : undefined,
     });
 

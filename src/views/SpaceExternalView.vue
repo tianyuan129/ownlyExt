@@ -49,7 +49,7 @@
 
 <script setup lang="ts">
 import { JsonViewer } from 'vue3-json-viewer';
-import 'vue3-json-viewer/dist/index.css';
+import 'vue3-json-viewer/dist/vue3-json-viewer.css';
 import { Toast } from '@/utils/toast';
 import {
   ref,
