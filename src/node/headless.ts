@@ -21,8 +21,7 @@ import ndn from '../services/ndn.js';
 import { Workspace } from '../services/workspace.js';
 import * as utils from '../utils/index.js';
 
-import { ai } from './genkit.js';
-import { googleAI } from "@genkit-ai/googleai";
+import { MCPClient } from './llm.js';
 
 import express from 'express';
 import cors from 'cors';
@@ -74,6 +73,11 @@ async function initEnvironment() {
 }
 
 async function startAgent(wkspName: string, psk: string, channelName: string) {
+  const llm = new MCPClient();
+
+  const serverScriptPath = "rag/small_rag.py"
+  await llm.connectToServer(serverScriptPath);
+
   // Setup the workspace
   const wksp = await setupWorkspace(wkspName, psk);
 
@@ -130,10 +134,7 @@ async function startAgent(wkspName: string, psk: string, channelName: string) {
 
       // ensure agent does not respond to itself
       if (message.message.substring(0, 7) != AGENT_ID) { // use message.user in future
-        let { text } = await ai.generate({
-          model: googleAI.model('gemini-2.0-flash'),
-          prompt: message.message
-        });
+        let text = await llm.call(message.message);
 
         text = AGENT_ID + text;
 
