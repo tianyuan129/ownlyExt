@@ -133,7 +133,7 @@ async function startAgent(wkspName: string, psk: string, channelName: string) {
       console.log(`[${timestamp}] ${message.user}: ${message.message}`);
 
       // ensure agent does not respond to itself
-      if (message.message.substring(0, 7) != AGENT_ID) { // use message.user in future
+      if (message.message.substring(0, AGENT_ID.length) != AGENT_ID) { // use message.user in future
         let text = await llm.call(message.message);
 
         text = AGENT_ID + text;
