@@ -67,6 +67,7 @@ httpx==0.28.1
     # via
     #   fastmcp
     #   mcp
+    #   ollama
 httpx-sse==0.4.1
     # via mcp
 huggingface-hub==0.34.5
@@ -160,6 +161,8 @@ nvidia-nvjitlink-cu12==12.8.93
     #   torch
 nvidia-nvtx-cu12==12.8.90
     # via torch
+ollama==0.5.4
+    # via finetune (pyproject.toml)
 openapi-core==0.19.5
     # via fastmcp
 openapi-pydantic==0.5.1
@@ -192,6 +195,7 @@ pydantic==2.11.9
     # via
     #   fastmcp
     #   mcp
+    #   ollama
     #   openapi-pydantic
     #   pydantic-settings
 pydantic-core==2.33.2
