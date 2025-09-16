@@ -3,7 +3,6 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 
 export class MCPClient {
   private client: Client;
-  private transport: StdioClientTransport;
 
   constructor() {
     this.client = new Client({ name: "NDN Agent Client", version: "1.0.0" });

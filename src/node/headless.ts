@@ -75,7 +75,7 @@ async function initEnvironment() {
 async function startAgent(wkspName: string, psk: string, channelName: string) {
   const llm = new MCPClient();
 
-  const serverScriptPath = "rag/small_rag.py"
+  const serverScriptPath = "ragless/finetune.py"
   await llm.connectToServer(serverScriptPath);
 
   // Setup the workspace
