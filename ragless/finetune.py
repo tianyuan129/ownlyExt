@@ -36,7 +36,7 @@ def ndn_qa(message: str) -> str:
                                                                                                     
     model_inputs = tokenizer([text], return_tensors="pt").to(model.device)     
 
-    generated_ids = model.generate(**model_inputs, max_length=300)
+    generated_ids = model.generate(**model_inputs, max_length=1000)
     output = tokenizer.batch_decode(generated_ids)[0]
     return output[output.rindex("</think>") + 10:-10]
 
