@@ -27,7 +27,7 @@ console.dir(tools, { depth: 10 });
     const result = await this.client.callTool({
       name: "ndn_qa",
       arguments: {["message"]: query}
-    });
+    }, undefined, { timeout: 120000 });
     console.dir(result, { depth: 10 });
     return result.structuredContent.result
   }

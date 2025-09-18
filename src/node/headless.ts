@@ -83,8 +83,6 @@ async function startAgent(wkspName: string, psk: string, channelName: string, te
   // Setup the workspace
   const wksp = await setupWorkspace(wkspName, psk);
 
-  const AGENT_ID = await askInput('Agent name: ') + ": ";
-
   // Setup chat
   console.log(`Joined workspace '${wkspName}'`);
   await new Promise((resolve) => setTimeout(resolve, 2000)); // Wait for sync
@@ -135,10 +133,10 @@ async function startAgent(wkspName: string, psk: string, channelName: string, te
       console.log(`[${timestamp}] ${message.user}: ${message.message}`);
 
       // ensure agent does not respond to itself
-      if (message.message.substring(0, AGENT_ID.length) != AGENT_ID && Math.random() < 0.5) { // use message.user in future
+      if (message.message.substring(0, temp_id.length) != temp_id) { // use message.user in future
         let text = await llm.call(message.message);
 
-        text = AGENT_ID + text;
+        text = temp_id + text;
 
         await chat.sendMessage(channelName, {
           uuid: '', // auto-generated
