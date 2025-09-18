@@ -29,7 +29,7 @@ import cors from 'cors';
 async function main() {
   const email = process.argv[2];
   const temp_id = process.argv[3];
-  const route = process.argv[4];
+  const route = "/" + process.argv[4];
 
   try {
     await initEnvironment(email);
