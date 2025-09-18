@@ -192,7 +192,7 @@ async function startHttpServer(route:string, temp_id: string) {
 
   const PORT = 3000;
   app.listen(PORT, () => {
-    console.log(`Agent server listening on http://localhost:${PORT}`);
+    console.log(`Agent server listening on http://localhost:${PORT}${route}`);
   });
 }
 
