@@ -27,17 +27,21 @@ import express from 'express';
 import cors from 'cors';
 
 async function main() {
-  try {
-    await initEnvironment();
+  const email = process.argv[2];
+  const temp_id = process.argv[3];
+  const route = "/" + process.argv[4];
 
-    await startHttpServer();
+  try {
+    await initEnvironment(email);
+
+    await startHttpServer(route, temp_id);
   } catch (e) {
     console.error('FATAL:', e);
     process.exit(1);
   }
 }
 
-async function initEnvironment() {
+async function initEnvironment(email: string) {
   await loadServices();
   await loadGoEnvironment();
 
@@ -45,8 +49,6 @@ async function initEnvironment() {
 
   // Connect to testbed
   await ndn.api.connect_testbed();
-
-  const email = await askInput('Enter email to use: ');
 
   // Check if we have a testbed key, if not do NDNCERT
   if (!(await ndn.api.has_testbed_key())) {
@@ -72,7 +74,7 @@ async function initEnvironment() {
   }
 }
 
-async function startAgent(wkspName: string, psk: string, channelName: string) {
+async function startAgent(wkspName: string, psk: string, channelName: string, temp_id: string) {
   const llm = new MCPClient();
 
   const serverScriptPath = "ragless/llm.py"
@@ -152,7 +154,7 @@ async function startAgent(wkspName: string, psk: string, channelName: string) {
   await new Promise(() => {}); // Wait forever
 }
 
-async function startHttpServer() {
+async function startHttpServer(route:string, temp_id: string) {
   const app = express();
   app.use(express.json());
   // Avoid CORS issue
@@ -162,7 +164,7 @@ async function startHttpServer() {
     allowedHeaders: ["Content-Type", "Authorization"]
   }));
 
-  app.post('/agent', async function(req, res) {
+  app.post(route, async function(req, res) {
     let { wkspName, psk, channel } = req.body;
 
     const pskBuffer = Buffer.from(psk, 'hex');
@@ -179,7 +181,7 @@ async function startHttpServer() {
         globalThis._activeAgent = null;
       }
 
-      startAgent(wkspName, psk, channel);
+      startAgent(wkspName, psk, channel, temp_id);
 
       res.json({ ok: true, message: `Agent joined workspace ${wkspName} on #${channel}` });
     } catch (err: any) {
@@ -190,7 +192,7 @@ async function startHttpServer() {
 
   const PORT = 3000;
   app.listen(PORT, () => {
-    console.log(`Agent server listening on http://localhost:${PORT}`);
+    console.log(`Agent server listening on http://localhost:${PORT}${route}`);
   });
 }
 
