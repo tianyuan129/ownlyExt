@@ -30,11 +30,12 @@ async function main() {
   const email = process.argv[2];
   const temp_id = process.argv[3] + ": ";
   const route = "/" + process.argv[4];
+  const port = process.argv[5];
 
   try {
     await initEnvironment(email);
 
-    await startHttpServer(route, temp_id);
+    await startHttpServer(route, temp_id, port);
   } catch (e) {
     console.error('FATAL:', e);
     process.exit(1);
@@ -152,7 +153,7 @@ async function startAgent(wkspName: string, psk: string, channelName: string, te
   await new Promise(() => {}); // Wait forever
 }
 
-async function startHttpServer(route:string, temp_id: string) {
+async function startHttpServer(route:string, temp_id: string, port: number) {
   const app = express();
   app.use(express.json());
   // Avoid CORS issue
@@ -187,10 +188,8 @@ async function startHttpServer(route:string, temp_id: string) {
       res.status(500).json({ ok: false, error: err.message });
     }
   });
-
-  const PORT = 3000;
-  app.listen(PORT, () => {
-    console.log(`Agent server listening on http://localhost:${PORT}${route}`);
+  app.listen(port, () => {
+    console.log(`Agent server listening on http://localhost:${port}${route}`);
   });
 }
 

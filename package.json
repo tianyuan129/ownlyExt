@@ -27,7 +27,7 @@
     "@genkit-ai/googleai": "^1.16.1",
     "@milkdown/crepe": "^7.6.3",
     "@milkdown/plugin-collab": "^7.6.3",
-    "@modelcontextprotocol/sdk": "^1.17.5",
+    "@modelcontextprotocol/sdk": "^1.18.1",
     "@zip.js/zip.js": "^2.7.57",
     "bulma": "^1.0.3",
     "cors": "^2.8.5",
