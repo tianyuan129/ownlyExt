@@ -6,6 +6,8 @@ from ollama import ChatResponse, chat
 from langchain_core.documents import Document
 from langchain_community.document_loaders import PyPDFLoader
 
+mcp = FastMCP("Paper RAG")
+
 def fetch_paper(index: int) -> str:
   """
   Fetch an entire paper
@@ -34,12 +36,9 @@ def fetch_paper(index: int) -> str:
   return text
 
 
-
-mcp = FastMCP("Paper RAG")
-
 @mcp.tool
 def ndn_qa(message: str) -> str:
-    user_message = {'role': 'user', 'content': 'What is S-GET as defined in the HTTP at the narrow waist paper?'}
+    user_message = {'role': 'user', 'content': message}
 
     messages = [
     {'role': 'system', 'content': '''You are an AI assistant that answers questions about networking.
