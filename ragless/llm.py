@@ -47,7 +47,6 @@ def ndn_qa(message: str) -> str:
         - Answers should have enough detail and context but still be concise'''},
         user_message
     ]
-    print('Prompt:', messages[1]['content'])
 
     available_functions = {
         'fetch_paper': fetch_paper,
@@ -78,6 +77,6 @@ def ndn_qa(message: str) -> str:
         # Get final response from model with function outputs
         final_response = chat('gpt-oss:20b', messages=messages)
 
-    return final_response.content
+    return str(final_response.message.content)
 
 mcp.run()
