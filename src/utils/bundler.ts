@@ -22,8 +22,8 @@ export class Bundler {
   ) {
     this._opts = {
       thresholdSize: 3000,
-      delayMs: 400, // combine as typing
-      maxDelayMs: 1600,
+      delayMs: 1, // combine as typing
+      maxDelayMs: 1,
       ...opts,
     };
   }
