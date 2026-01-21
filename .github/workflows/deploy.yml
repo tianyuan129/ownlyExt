@@ -2,12 +2,13 @@ name: Deploy to Cloudflare
 
 on:
   push:
-    branches: [main]
+    branches: [main, upstream]
   pull_request:
     branches: [main]
 
 jobs:
   deploy: # This is the job we're focusing on for your frontend app
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     name: Deploy to Cloudflare Pages
     steps:
@@ -50,6 +51,7 @@ jobs:
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
 
   deploy-websocket:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     name: Deploy WebSocket Worker
     steps:
@@ -78,6 +80,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
   deploy-websocket-ui:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     name: Deploy WebSocket UI
     steps:
@@ -99,3 +102,47 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+  deploy-upstream:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/upstream'
+    runs-on: ubuntu-latest
+    name: Deploy upstream to Cloudflare Pages
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.24'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Update Go dependencies
+        run: |
+          cd ndn
+          go mod tidy
+
+      - name: Build WASM
+        run: |
+          npm run go:wasm
+
+      - name: Build application
+        run: npm run build -- --outDir dist-upstream
+
+      - name: Deploy upstream to Cloudflare Pages
+        uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          projectName: ownly2
+          directory: dist-upstream
+          branch: upstream
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
