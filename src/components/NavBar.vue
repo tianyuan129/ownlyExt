@@ -44,6 +44,22 @@
             >
           </li>
           <li>
+            <router-link to="/help">
+              <FontAwesomeIcon class="mr-1" :icon="faLightbulb" size="sm" />
+              Getting Started</router-link
+            >
+            <ul v-if="route.name === 'help'" class="menu-list help-toc">
+              <li v-for="item in helpTocItems" :key="item.id">
+                <a
+                  :class="{ 'is-active': activeHelpSection === item.id }"
+                  @click="scrollToHelp(item.id)"
+                >
+                  {{ item.label }}
+                </a>
+              </li>
+            </ul>
+          </li>
+          <li>
             <a href="https://github.com/pulsejet/ownly" target="_blank">
               <FontAwesomeIcon class="mr-1" :icon="faGithub" size="sm" />
               GitHub
@@ -112,22 +128,12 @@
           </li>
         </ul>
 
-        <p class="menu-label">AI Agents</p>
-        <ul class="menu-list">
-          <li>
-            <a @click="showAgentModal = true">
-              <FontAwesomeIcon class="mr-1" :icon="faRobot" size="sm" />
-              Manage agents
-            </a>
-          </li>
-        </ul>
-
         <p class="menu-label">Workspace</p>
         <ul class="menu-list">
           <li>
             <a @click="showInviteModal = true">
-              <FontAwesomeIcon class="mr-1" :icon="faPlus" size="sm" />
-              Invite people
+              <FontAwesomeIcon class="mr-1" :icon="faUsers" size="sm" />
+              People & access
 
               <FontAwesomeIcon v-show="showNotifBubble" class="mr-1" :icon="faCircleExclamation" size="sm"></FontAwesomeIcon>
             </a>
@@ -182,7 +188,7 @@
                       v-if="!isMasterOwnerDevice(device)"
                       class="owner-device-action"
                       type="button"
-                      :disabled="transferringMasterDeviceId === device.deviceId || !canCurrentWorkspaceManageMls()"
+                      :disabled="transferringMasterDeviceId === device.deviceId || !canTransferMasterToDevice(device)"
                       @click="transferMasterToDevice(device)"
                     >
                       {{
@@ -191,12 +197,25 @@
                           : 'Make Master'
                       }}
                     </button>
+                    <button
+                      v-if="!isLocalOwnerDevice(device)"
+                      class="owner-device-action danger"
+                      type="button"
+                      :disabled="removingOwnerDeviceId === device.deviceId || !canRemoveOwnerDevice(device)"
+                      @click="removeOwnerDevice(device)"
+                    >
+                      {{
+                        removingOwnerDeviceId === device.deviceId
+                          ? 'Removing...'
+                          : 'Remove'
+                      }}
+                    </button>
                   </div>
                 </div>
               </div>
               <div v-else class="owner-device-empty">No owner devices registered yet.</div>
               <div v-if="!canCurrentWorkspaceManageMls()" class="owner-device-note">
-                Only the current master owner device can transfer control.
+                The current master can transfer control to any owner device. This owner device can also make itself master after it has joined MLS.
               </div>
             </div>
           </li>
@@ -232,10 +251,6 @@
     <AddProjectModal :show="showProjectModal" @close="showProjectModal = false" />
     <InvitePeopleModal :show="showInviteModal" @close="showInviteModal = false" />
     <QrModal :show="showIdentity" @close="showIdentity = false" />
-
-    <ModalComponent :show="showAgentModal" @close="showAgentModal = false">
-      <AgentBrowser />
-    </ModalComponent>
   </aside>
 </template>
 
@@ -252,12 +267,13 @@ import {
   faTableCells,
   faQrcode,
   faCircleInfo,
-  faRobot,
+  faLightbulb,
   faCircleExclamation,
   faArrowsRotate,
   faGear,
   faMoon,
   faSun,
+  faUsers,
 } from '@fortawesome/free-solid-svg-icons';
 import { faGithub } from '@fortawesome/free-brands-svg-icons';
 
@@ -265,8 +281,6 @@ import ProjectTree from './ProjectTree.vue';
 import ProjectTreeMenu from './ProjectTreeMenu.vue';
 import AddChannelModal from './AddChannelModal.vue';
 import AddProjectModal from './AddProjectModal.vue';
-import AgentBrowser from './AgentBrowser.vue';
-import ModalComponent from './ModalComponent.vue';
 
 import { GlobalBus } from '@/services/event-bus';
 import { Toast } from '@/utils/toast';
@@ -277,7 +291,7 @@ import QrModal from './QrModal.vue';
 
 const route = useRoute();
 const routeIsDashboard = computed(() =>
-  ['dashboard', 'join', 'about'].includes(String(route.name)),
+  ['dashboard', 'join', 'about', 'help'].includes(String(route.name)),
 );
 const routeIsWorkspace = computed(() =>
   ['space-home', 'project', 'discuss', 'project-file'].includes(String(route.name)),
@@ -288,7 +302,6 @@ const showChannelModal = ref(false);
 const showProjectModal = ref(false);
 const showInviteModal = ref(false);
 const showIdentity = ref(false);
-const showAgentModal = ref(false);
 const showAdvancedSettings = ref(false);
 const isResettingMls = ref(false);
 const isRequestingSOS = ref(false);
@@ -297,6 +310,7 @@ const currentWorkspaceIsOwner = ref(false);
 const localOwnerDeviceId = ref(null as string | null);
 const masterOwnerDeviceId = ref(null as string | null);
 const transferringMasterDeviceId = ref(null as string | null);
+const removingOwnerDeviceId = ref(null as string | null);
 
 // vue-tsc chokes on this type inference
 const projectTree = useTemplateRef<Array<InstanceType<typeof ProjectTree>>>('projectTree');
@@ -308,6 +322,22 @@ const activeProjectName = ref(null as string | null);
 const projectFiles = ref([] as IProjectFile[]);
 
 const connState = ref(globalThis._ndnd_conn_state);
+
+const helpTocItems = [
+  { id: 'creating-workspace', label: 'Creating a Workspace' },
+  { id: 'joining-workspace', label: 'Joining a Workspace' },
+  { id: 'inviting-others', label: 'Inviting Others' },
+];
+const activeHelpSection = ref('creating-workspace');
+
+function scrollToHelp(id: string) {
+  activeHelpSection.value = id;
+  window.location.hash = id;
+  const el = document.getElementById(id);
+  if (el) {
+    el.scrollIntoView({ behavior: 'auto' });
+  }
+}
 
 const busListeners = {
   'project-list': (projs: IProject[]) => (projects.value = projs),
@@ -321,6 +351,9 @@ const busListeners = {
     if (!connState.value.connected) {
       Toast.info('Disconnected - you are offline');
     }
+  },
+  'help-toc-active': (id: string) => {
+    activeHelpSection.value = id;
   },
 };
 
@@ -363,6 +396,7 @@ onMounted(async () => {
   GlobalBus.addListener('project-files', busListeners['project-files']);
   GlobalBus.addListener('chat-channels', busListeners['chat-channels']);
   GlobalBus.addListener('conn-change', busListeners['conn-change']);
+  GlobalBus.addListener('help-toc-active', busListeners['help-toc-active']);
   interval = setInterval(() => {
     setNotification();
     syncOwnerDevices();
@@ -379,6 +413,7 @@ onUnmounted(() => {
   GlobalBus.removeListener('project-files', busListeners['project-files']);
   GlobalBus.removeListener('chat-channels', busListeners['chat-channels']);
   GlobalBus.removeListener('conn-change', busListeners['conn-change']);
+  GlobalBus.removeListener('help-toc-active', busListeners['help-toc-active']);
   clearInterval(interval);
   preferredDark?.removeEventListener('change', onThemeMediaChange);
 });
@@ -544,6 +579,21 @@ function isLocalOwnerDevice(device: IOwnerDeviceRecord): boolean {
   return device.deviceId === localOwnerDeviceId.value;
 }
 
+function canTransferMasterToDevice(device: IOwnerDeviceRecord): boolean {
+  const wksp = globalThis.ActiveWorkspace;
+  if (!wksp?.metadata.owner) return false;
+  if (wksp.invite.isMasterDevice()) return true;
+  return isLocalOwnerDevice(device) && wksp.invite.hasMlsGroup();
+}
+
+function canRemoveOwnerDevice(device: IOwnerDeviceRecord): boolean {
+  const wksp = globalThis.ActiveWorkspace;
+  return !!wksp?.metadata.owner &&
+    wksp.invite.isMasterDevice() &&
+    !isLocalOwnerDevice(device) &&
+    !isMasterOwnerDevice(device);
+}
+
 async function renameOwnerDevice(device: IOwnerDeviceRecord) {
   const wksp = globalThis.ActiveWorkspace;
   if (!wksp?.metadata.owner) {
@@ -570,8 +620,8 @@ async function transferMasterToDevice(device: IOwnerDeviceRecord) {
     Toast.error('No active workspace');
     return;
   }
-  if (!canCurrentWorkspaceManageMls()) {
-    Toast.error('Only the current master owner device can transfer control');
+  if (!canTransferMasterToDevice(device)) {
+    Toast.error('This owner device can only make itself master');
     return;
   }
   if (transferringMasterDeviceId.value) return;
@@ -589,6 +639,34 @@ async function transferMasterToDevice(device: IOwnerDeviceRecord) {
     await progress.error(`Failed to transfer master control: ${err}`);
   } finally {
     transferringMasterDeviceId.value = null;
+  }
+}
+
+async function removeOwnerDevice(device: IOwnerDeviceRecord) {
+  const wksp = globalThis.ActiveWorkspace;
+  if (!wksp) {
+    Toast.error('No active workspace');
+    return;
+  }
+  if (!canRemoveOwnerDevice(device)) {
+    Toast.error('Only the master owner device can remove another non-master owner device');
+    return;
+  }
+  if (removingOwnerDeviceId.value) return;
+  if (!globalThis.confirm(`Remove owner device ${device.label} from MLS and the registry?`)) {
+    return;
+  }
+
+  removingOwnerDeviceId.value = device.deviceId;
+  const progress = Toast.loading(`Removing owner device ${device.label}...`);
+  try {
+    await wksp.invite.removeOwnerDevice(device.deviceId);
+    syncOwnerDevices();
+    await progress.success(`Removed owner device ${device.label}`);
+  } catch (err) {
+    await progress.error(`Failed to remove owner device: ${err}`);
+  } finally {
+    removingOwnerDeviceId.value = null;
   }
 }
 
@@ -859,6 +937,14 @@ async function resetMlsState() {
       cursor: default;
       opacity: 0.55;
     }
+
+    &.danger {
+      background: rgba(255, 88, 88, 0.22);
+
+      &:hover:enabled {
+        background: rgba(255, 88, 88, 0.34);
+      }
+    }
   }
 
   .owner-device-empty,
@@ -1026,6 +1112,50 @@ async function resetMlsState() {
   &:hover .sidebar-resizer::before,
   &.resizing .sidebar-resizer::before {
     background: rgba(255, 255, 255, 0.22);
+  }
+
+  .help-toc {
+    list-style: none;
+    margin: 4px 0px 4px 10px;
+    padding: 0 0 0 16px;
+    border-left: 1px solid rgba(255, 255, 255, 0.12);
+    position: relative;
+
+    li {
+      margin: 0;
+      padding: 0;
+      position: relative;
+
+      a {
+        display: block;
+        padding: 6px 10px;
+        font-size: 0.85rem;
+        color: rgba(255, 255, 255, 0.8);
+        text-decoration: none;
+        border-radius: 6px;
+        position: relative;
+
+        &:hover {
+          background: rgba(255, 255, 255, 0.06);
+        }
+
+        &.is-active {
+          background: rgba(255, 255, 255, 0.08);
+          color: white;
+
+          &::before {
+            content: '';
+            position: absolute;
+            left: -17px;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            border-radius: 6px;
+            background: var(--sidebar-highlight-bg);
+          }
+        }
+      }
+    }
   }
 }
 </style>
